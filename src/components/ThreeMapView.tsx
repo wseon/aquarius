@@ -94,8 +94,8 @@ export default function ThreeMapView() {
         right.crossVectors(camera.getWorldDirection(new THREE.Vector3()), up).normalize();
         const forward = new THREE.Vector3();
         forward.crossVectors(up, right).normalize();
-        target.add(right.multiplyScalar(-dx * panSpeed));
-        target.add(forward.multiplyScalar(-dy * panSpeed));
+        target.add(right.multiplyScalar(dx * panSpeed));
+        target.add(forward.multiplyScalar(dy * panSpeed));
         updateCamera();
       } else if (dragButton === 2) {
         // 우클릭 → 회전 (Cesium 스타일)
