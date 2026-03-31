@@ -1,0 +1,38 @@
+{
+  "name": "sd26",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "predev": "cp -R node_modules/cesium/Build/Cesium/Workers public/cesium/Workers 2>/dev/null; cp -R node_modules/cesium/Build/Cesium/ThirdParty public/cesium/ThirdParty 2>/dev/null; cp -R node_modules/cesium/Build/Cesium/Assets public/cesium/Assets 2>/dev/null; cp -R node_modules/cesium/Build/Cesium/Widgets public/cesium/Widgets 2>/dev/null; true",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/three": "^0.183.1",
+    "cesium": "^1.139.1",
+    "gltf-builder": "^0.9.0",
+    "next": "^16.2.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "resium": "^1.20.0",
+    "three": "^0.183.2",
+    "typescript": "^6.0.2",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "copy-webpack-plugin": "^14.0.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2"
+  }
+}

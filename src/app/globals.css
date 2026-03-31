@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+html, body, #__next {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Cesium 다크 테마 오버라이드 */
+.cesium-viewer {
+  font-family: inherit;
+}
+
+.cesium-viewer-bottom {
+  display: none !important;
+}
+
+.cesium-infoBox {
+  background: rgba(10, 15, 26, 0.95) !important;
+  border: 1px solid rgba(55, 65, 81, 0.5) !important;
+  color: #e5e7eb !important;
+}
+
+.cesium-infoBox-title {
+  background: rgba(10, 15, 26, 0.95) !important;
+  color: #e5e7eb !important;
+}
+
+.cesium-selection-wrapper {
+  border-color: #0ea5e9 !important;
+}
