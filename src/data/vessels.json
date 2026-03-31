@@ -1,0 +1,70 @@
+{
+  "vessels": [
+    {
+      "mmsi": "440001001",
+      "name": "EVER GIVEN",
+      "type": "컨테이너선",
+      "lat": 37.495,
+      "lon": 126.608,
+      "heading": 340,
+      "speed": 0,
+      "status": "하역중",
+      "length": 80
+    },
+    {
+      "mmsi": "440001002",
+      "name": "HMM OSLO",
+      "type": "컨테이너선",
+      "lat": 37.5,
+      "lon": 126.605,
+      "heading": 160,
+      "speed": 3.2,
+      "status": "입항중",
+      "length": 65
+    },
+    {
+      "mmsi": "440001003",
+      "name": "KOREA EXPRESS",
+      "type": "벌크선",
+      "lat": 37.49,
+      "lon": 126.595,
+      "heading": 20,
+      "speed": 5.1,
+      "status": "항행중",
+      "length": 90
+    },
+    {
+      "mmsi": "440001004",
+      "name": "INCHEON STAR",
+      "type": "유조선",
+      "lat": 37.492,
+      "lon": 126.612,
+      "heading": 180,
+      "speed": 0,
+      "status": "정박",
+      "length": 55
+    },
+    {
+      "mmsi": "440001005",
+      "name": "BLUE OCEAN",
+      "type": "컨테이너선",
+      "lat": 37.503,
+      "lon": 126.598,
+      "heading": 350,
+      "speed": 7.8,
+      "status": "항행중",
+      "length": 100
+    },
+    {
+      "mmsi": "440001006",
+      "name": "PACIFIC DREAM",
+      "type": "화물선",
+      "lat": 37.488,
+      "lon": 126.602,
+      "heading": 45,
+      "speed": 2.1,
+      "status": "출항중",
+      "length": 70
+    }
+  ]
+}

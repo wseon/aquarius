@@ -5,6 +5,8 @@ import { useLayerStore } from "@/stores/layerStore";
 const LAYERS = [
   { key: "facilities", label: "항만시설", icon: "⊞" },
   { key: "seabed", label: "해저지형", icon: "▦" },
+  { key: "currentFlow", label: "해류 벡터", icon: "〰" },
+  { key: "vessels", label: "선박", icon: "▷" },
   { key: "grid", label: "격자", icon: "▤" },
 ];
 

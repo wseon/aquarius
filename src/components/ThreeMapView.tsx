@@ -7,6 +7,8 @@ import { useLayerStore } from "@/stores/layerStore";
 import { createMapTile } from "./three/MapTile";
 import { createTerrainMesh } from "./three/TerrainMesh";
 import { createBuildings } from "./three/Buildings";
+import { CurrentVectorSystem } from "./three/CurrentVectors";
+import { createVessels } from "./three/Vessels";
 import { createWaterSurface } from "./three/WaterSurface";
 
 export default function ThreeMapView() {
@@ -17,6 +19,8 @@ export default function ThreeMapView() {
   const controlsRef = useRef<any>(null);
   const layerGroupsRef = useRef<Record<string, THREE.Object3D>>({});
   const waterAnimateRef = useRef<(() => void) | null>(null);
+  const currentVecRef = useRef<CurrentVectorSystem | null>(null);
+  const vesselAnimateRef = useRef<(() => void) | null>(null);
   const layers = useLayerStore();
 
   useEffect(() => {
@@ -138,6 +142,8 @@ export default function ThreeMapView() {
     const animate = () => {
       requestAnimationFrame(animate);
       if (waterAnimateRef.current) waterAnimateRef.current();
+      if (currentVecRef.current) currentVecRef.current.animate();
+      if (vesselAnimateRef.current) vesselAnimateRef.current();
       renderer.render(scene, camera);
     };
     animate();
@@ -181,11 +187,24 @@ export default function ThreeMapView() {
     const buildings = await createBuildings();
     scene.add(buildings);
     layerGroupsRef.current["facilities"] = buildings;
+
+    // 해류 벡터
+    const currentVec = new CurrentVectorSystem();
+    await currentVec.load();
+    scene.add(currentVec.group);
+    currentVecRef.current = currentVec;
+    layerGroupsRef.current["currentFlow"] = currentVec.group;
+
+    // 선박
+    const { group: vesselGroup, animate: vesselAnimate } = await createVessels();
+    scene.add(vesselGroup);
+    vesselAnimateRef.current = vesselAnimate;
+    layerGroupsRef.current["vessels"] = vesselGroup;
   }
 
   // 레이어 토글
   useEffect(() => {
-    const keys = ["facilities", "grid"];
+    const keys = ["facilities", "grid", "currentFlow", "vessels"];
     for (const key of keys) {
       const obj = layerGroupsRef.current[key];
       if (obj) {
@@ -194,11 +213,16 @@ export default function ThreeMapView() {
     }
 
     // seabed 토글: ON=해저지형, OFF=해수면
-    const seabed = layerGroupsRef.current["seabed"];
+    const seabedObj = layerGroupsRef.current["seabed"];
     const water = layerGroupsRef.current["waterSurface"];
-    if (seabed) seabed.visible = layers.seabed;
+    if (seabedObj) seabedObj.visible = layers.seabed;
     if (water) water.visible = !layers.seabed;
-  }, [layers.facilities, layers.grid, layers.seabed]);
+
+    // 해류: 중층/저층은 해저지형 ON일 때만
+    if (currentVecRef.current) {
+      currentVecRef.current.setSeabedVisible(layers.seabed);
+    }
+  }, [layers.facilities, layers.grid, layers.seabed, layers.currentFlow, layers.vessels]);
 
   return <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 }} />;
 }
