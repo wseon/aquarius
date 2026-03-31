@@ -7,6 +7,7 @@ import { useLayerStore } from "@/stores/layerStore";
 import { createMapTile } from "./three/MapTile";
 import { createTerrainMesh } from "./three/TerrainMesh";
 import { createBuildings } from "./three/Buildings";
+import { createWaterSurface } from "./three/WaterSurface";
 
 export default function ThreeMapView() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -15,6 +16,7 @@ export default function ThreeMapView() {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<any>(null);
   const layerGroupsRef = useRef<Record<string, THREE.Object3D>>({});
+  const waterAnimateRef = useRef<(() => void) | null>(null);
   const layers = useLayerStore();
 
   useEffect(() => {
@@ -135,6 +137,7 @@ export default function ThreeMapView() {
     // Animation loop
     const animate = () => {
       requestAnimationFrame(animate);
+      if (waterAnimateRef.current) waterAnimateRef.current();
       renderer.render(scene, camera);
     };
     animate();
@@ -154,16 +157,30 @@ export default function ThreeMapView() {
   }, []);
 
   async function loadAll(scene: THREE.Scene) {
-    // 지형 메시 (바다=-20m, 육지=0m)
-    const terrain = await createTerrainMesh();
-    scene.add(terrain);
-    layerGroupsRef.current["map"] = terrain;
+    // 지형 데이터 로드
+    const wmRes = await fetch("/api/terrain-watermap");
+    const wmData = await wmRes.json();
+
+    // 육지 + 해저 분리 메시
+    const { land, seabed } = await createTerrainMesh();
+    scene.add(land);    // 항상 보임
+    scene.add(seabed);  // 토글
+    layerGroupsRef.current["seabed"] = seabed;
+
+    // 해수면 (물결 애니메이션)
+    const { mesh: water, animate: waterAnimate } = createWaterSurface(
+      wmData.lats, wmData.lons, wmData.waterMap
+    );
+    scene.add(water);
+    layerGroupsRef.current["waterSurface"] = water;
+    waterAnimateRef.current = waterAnimate;
+    // 기본: seabed ON → 해수면 OFF
+    water.visible = false;
 
     // 건물 (육지 위)
     const buildings = await createBuildings();
     scene.add(buildings);
     layerGroupsRef.current["facilities"] = buildings;
-
   }
 
   // 레이어 토글
@@ -175,7 +192,13 @@ export default function ThreeMapView() {
         obj.visible = layers[key as keyof typeof layers] as boolean;
       }
     }
-  }, [layers.facilities, layers.grid]);
+
+    // seabed 토글: ON=해저지형, OFF=해수면
+    const seabed = layerGroupsRef.current["seabed"];
+    const water = layerGroupsRef.current["waterSurface"];
+    if (seabed) seabed.visible = layers.seabed;
+    if (water) water.visible = !layers.seabed;
+  }, [layers.facilities, layers.grid, layers.seabed]);
 
   return <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 }} />;
 }
