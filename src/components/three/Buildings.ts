@@ -44,14 +44,14 @@ export async function createBuildings(): Promise<THREE.Group> {
 
       try {
         const extrudeSettings = {
-          depth: height,
+          depth: height * 3,
           bevelEnabled: false,
         };
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         const mesh = new THREE.Mesh(geometry, material);
         // ExtrudeGeometry는 Z방향으로 돌출 → 회전해서 Y(위)방향으로
         mesh.rotation.x = -Math.PI / 2;
-        mesh.position.y = 100; // 수심 메시 위에 배치
+        mesh.position.y = 0; // 육지면(Y=0) 위에 배치
         group.add(mesh);
       } catch {
         // 잘못된 geometry 스킵

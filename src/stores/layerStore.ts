@@ -12,6 +12,7 @@ export interface LayerState {
   waterTemp: boolean;
   salinity: boolean;
   pollution: boolean;
+  grid: boolean;
 
   // 수심 필터
   depthFilter: "all" | "surface" | "mid" | "bottom";
@@ -40,6 +41,7 @@ export const useLayerStore = create<LayerState>((set) => ({
   waterTemp: false,
   salinity: false,
   pollution: false,
+  grid: true,
 
   depthFilter: "all",
   timeHour: 12,

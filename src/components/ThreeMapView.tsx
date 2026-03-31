@@ -4,10 +4,9 @@ import { useEffect, useRef, useCallback } from "react";
 import * as THREE from "three";
 // OrbitControls 대신 직접 카메라 컨트롤 구현
 import { useLayerStore } from "@/stores/layerStore";
-import { createBathymetryMesh } from "./three/BathymetryMesh";
 import { createMapTile } from "./three/MapTile";
+import { createTerrainMesh } from "./three/TerrainMesh";
 import { createBuildings } from "./three/Buildings";
-import { createCurrentFlow } from "./three/CurrentFlow";
 
 export default function ThreeMapView() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -104,8 +103,6 @@ export default function ThreeMapView() {
     canvas.addEventListener("pointerup", (e) => {
       isDragging = false;
       canvas.releasePointerCapture(e.pointerId);
-      // 카메라 상태 로그
-      console.log(`[CAM] target:(${target.x.toFixed(0)},${target.y.toFixed(0)},${target.z.toFixed(0)}) radius:${spherical.radius.toFixed(0)} theta:${spherical.theta.toFixed(3)} phi:${spherical.phi.toFixed(3)}`);
     });
 
     canvas.addEventListener("wheel", (e) => {
@@ -113,8 +110,8 @@ export default function ThreeMapView() {
       const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
       spherical.radius = Math.max(200, Math.min(5000, spherical.radius * zoomFactor));
       updateCamera();
-      console.log(`[CAM] target:(${target.x.toFixed(0)},${target.y.toFixed(0)},${target.z.toFixed(0)}) radius:${spherical.radius.toFixed(0)} theta:${spherical.theta.toFixed(3)} phi:${spherical.phi.toFixed(3)}`);
     }, { passive: false });
+
 
     // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.8));
@@ -128,8 +125,9 @@ export default function ThreeMapView() {
 
     // 그리드
     const gridHelper = new THREE.GridHelper(6000, 60, 0x1a2038, 0x141828);
-    gridHelper.position.y = -1;
+    gridHelper.position.y = -21;
     scene.add(gridHelper);
+    layerGroupsRef.current["grid"] = gridHelper;
 
     // 데이터 로드
     loadAll(scene);
@@ -156,37 +154,28 @@ export default function ThreeMapView() {
   }, []);
 
   async function loadAll(scene: THREE.Scene) {
-    // 지도 타일
-    const mapTile = await createMapTile();
-    scene.add(mapTile);
-    layerGroupsRef.current["map"] = mapTile;
+    // 지형 메시 (바다=-20m, 육지=0m)
+    const terrain = await createTerrainMesh();
+    scene.add(terrain);
+    layerGroupsRef.current["map"] = terrain;
 
-    // 수심 메시
-    const bathymetry = await createBathymetryMesh();
-    scene.add(bathymetry);
-    layerGroupsRef.current["bathymetry"] = bathymetry;
-
-    // 건물
+    // 건물 (육지 위)
     const buildings = await createBuildings();
     scene.add(buildings);
     layerGroupsRef.current["facilities"] = buildings;
 
-    // 해류
-    const flow = createCurrentFlow();
-    scene.add(flow);
-    layerGroupsRef.current["currentFlow"] = flow;
   }
 
   // 레이어 토글
   useEffect(() => {
-    const keys = ["bathymetry", "facilities", "currentFlow"];
+    const keys = ["facilities", "grid"];
     for (const key of keys) {
       const obj = layerGroupsRef.current[key];
       if (obj) {
         obj.visible = layers[key as keyof typeof layers] as boolean;
       }
     }
-  }, [layers.bathymetry, layers.facilities, layers.currentFlow]);
+  }, [layers.facilities, layers.grid]);
 
   return <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 }} />;
 }

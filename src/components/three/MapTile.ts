@@ -45,6 +45,28 @@ export async function createMapTile(): Promise<THREE.Group> {
         const texture = await new Promise<THREE.Texture>((resolve, reject) => {
           loader.load(url, resolve, undefined, reject);
         });
+        // 바다 영역을 파란색으로 변환
+        const img = texture.image as HTMLImageElement;
+        const cvs = document.createElement("canvas");
+        cvs.width = img.width;
+        cvs.height = img.height;
+        const ctx = cvs.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+        const px = imageData.data;
+        for (let k = 0; k < px.length; k += 4) {
+          const r = px[k], g = px[k + 1], b = px[k + 2];
+          // 바다 판별: B > R+15 && G > R+5 && B > 200
+          if (b > r + 15 && g > r + 5 && b > 200) {
+            px[k] = 20;      // R
+            px[k + 1] = 60;  // G
+            px[k + 2] = 120; // B
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+        texture.image = cvs;
+        texture.needsUpdate = true;
+
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
 
