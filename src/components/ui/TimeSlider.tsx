@@ -1,9 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useLayerStore } from "@/stores/layerStore";
 
 export default function TimeSlider() {
   const { timeHour, setTimeHour } = useLayerStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-[#0a0f1a]/95 border border-gray-800/50 rounded-lg px-4 py-2 flex items-center gap-3 z-10">

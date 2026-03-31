@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { useLayerStore } from "@/stores/layerStore";
+import ThreeOverlay from "@/components/three/ThreeOverlay";
+import { createBathymetryMesh } from "@/components/three/BathymetryMesh";
 
 Cesium.Ion.defaultAccessToken = process.env.NEXT_PUBLIC_CESIUM_TOKEN!;
 (window as any).CESIUM_BASE_URL = "/cesium";
@@ -311,24 +313,9 @@ export default function MapView() {
     const { lats, lons, grid } = meshData;
     if (!lats || !lons) return;
 
-    // glTF 삼각형 메시로 렌더링 (틈 없는 연속 면)
-    const meshCenter = { lat: 37.49625, lon: 126.60469 };
-    const pos = Cesium.Cartesian3.fromDegrees(meshCenter.lon, meshCenter.lat, 0);
-    const hpr = Cesium.HeadingPitchRoll.fromDegrees(90, 0, 0);
-    const orientation = Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
-
-    const e = viewer.entities.add({
-      position: pos,
-      orientation: orientation as any,
-      model: {
-        uri: "/models/bathymetry.glb",
-        scale: 1.0,
-      },
-      name: "해저 지형",
-    });
-
-    layerGroupsRef.current["bathymetry"] = [e];
-    console.log("수심 3D 메시 (glTF) 로드");
+    // 수심 메시 — Three.js에서 렌더링 (하이브리드)
+    layerGroupsRef.current["bathymetry"] = [];
+    console.log("수심 3D 메시: Three.js 오버레이에서 렌더링");
   }
 
   // --- 해류 흐름 (바다 영역, 시간에 따라 변화) ---
@@ -759,6 +746,15 @@ export default function MapView() {
         className="w-full h-full"
         style={{ position: "absolute", top: 0, left: 0 }}
       />
+      {/* Three.js 오버레이 (수심 메시) */}
+      <ThreeOverlay cesiumViewer={viewerRef.current}>
+        {(scene) => {
+          createBathymetryMesh().then((mesh) => {
+            scene.add(mesh);
+            console.log("Three.js 수심 메시 추가 완료");
+          });
+        }}
+      </ThreeOverlay>
       {/* 클릭 좌표 */}
       {clickCoord && (
         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-[#0a0f1a]/90 border border-gray-700/50 px-3 py-1 rounded font-mono text-xs text-yellow-400 z-20">

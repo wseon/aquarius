@@ -42,7 +42,7 @@ export const useLayerStore = create<LayerState>((set) => ({
   pollution: false,
 
   depthFilter: "all",
-  timeHour: new Date().getHours(),
+  timeHour: 12,
   basemap: "simple",
 
   toggleLayer: (layer) =>
