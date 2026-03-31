@@ -311,49 +311,24 @@ export default function MapView() {
     const { lats, lons, grid } = meshData;
     if (!lats || !lons) return;
 
-    const entities: Cesium.Entity[] = [];
-    const depthScale = 8; // 높이 과장 배율 (입체감 강조)
-    const maxDepth = 30;
+    // glTF 삼각형 메시로 렌더링 (틈 없는 연속 면)
+    const meshCenter = { lat: 37.49625, lon: 126.60469 };
+    const pos = Cesium.Cartesian3.fromDegrees(meshCenter.lon, meshCenter.lat, 0);
+    const hpr = Cesium.HeadingPitchRoll.fromDegrees(90, 0, 0);
+    const orientation = Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
 
-    // 인접 4점으로 쿼드 생성 → perPositionHeight로 기울어진 면
-    for (let i = 0; i < lats.length - 1; i++) {
-      for (let j = 0; j < lons.length - 1; j++) {
-        const lat0 = lats[i], lat1 = lats[i + 1];
-        const lon0 = lons[j], lon1 = lons[j + 1];
+    const e = viewer.entities.add({
+      position: pos,
+      orientation: orientation as any,
+      model: {
+        uri: "/models/bathymetry.glb",
+        scale: 1.0,
+      },
+      name: "해저 지형",
+    });
 
-        // 격자 간격이 너무 크면 스킵 (보간 빈틈 방지)
-        if (lat1 - lat0 > 0.0004 || lon1 - lon0 > 0.0005) continue;
-
-        const d00 = grid[`${lat0},${lon0}`];
-        const d10 = grid[`${lat1},${lon0}`];
-        const d01 = grid[`${lat0},${lon1}`];
-        const d11 = grid[`${lat1},${lon1}`];
-
-        // 4개 꼭지점 모두 있어야 함
-        if (d00 == null || d10 == null || d01 == null || d11 == null) continue;
-
-        const avgDepth = (d00 + d10 + d01 + d11) / 4;
-        const [r, g, b, a] = depthColor(avgDepth, maxDepth);
-
-        const e = viewer.entities.add({
-          polygon: {
-            hierarchy: Cesium.Cartesian3.fromDegreesArrayHeights([
-              lon0, lat0, -d00 * depthScale,
-              lon1, lat0, -d10 * depthScale,
-              lon1, lat1, -d11 * depthScale,
-              lon0, lat1, -d01 * depthScale,
-            ]),
-            perPositionHeight: true,
-            material: new Cesium.Color(r, g, b, a),
-            outline: false,
-          },
-        });
-        entities.push(e);
-      }
-    }
-
-    layerGroupsRef.current["bathymetry"] = entities;
-    console.log(`수심 3D 메시: ${entities.length}개 면`);
+    layerGroupsRef.current["bathymetry"] = [e];
+    console.log("수심 3D 메시 (glTF) 로드");
   }
 
   // --- 해류 흐름 (바다 영역, 시간에 따라 변화) ---
