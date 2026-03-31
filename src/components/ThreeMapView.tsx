@@ -9,6 +9,9 @@ import { createTerrainMesh } from "./three/TerrainMesh";
 import { createBuildings } from "./three/Buildings";
 import { CurrentVectorSystem } from "./three/CurrentVectors";
 import { createVessels } from "./three/Vessels";
+import { createChannels } from "./three/Channels";
+import { createDangerZones } from "./three/DangerZones";
+import { createPollution } from "./three/Pollution";
 import { createWaterSurface } from "./three/WaterSurface";
 
 export default function ThreeMapView() {
@@ -21,6 +24,10 @@ export default function ThreeMapView() {
   const waterAnimateRef = useRef<(() => void) | null>(null);
   const currentVecRef = useRef<CurrentVectorSystem | null>(null);
   const vesselAnimateRef = useRef<(() => void) | null>(null);
+  const channelAnimateRef = useRef<(() => void) | null>(null);
+  const dangerAnimateRef = useRef<(() => void) | null>(null);
+  const dangerCheckRef = useRef<{ check: (x: number, z: number) => boolean; setAlert: (a: boolean) => void } | null>(null);
+  const pollutionAnimateRef = useRef<(() => void) | null>(null);
   const layers = useLayerStore();
 
   useEffect(() => {
@@ -144,6 +151,22 @@ export default function ThreeMapView() {
       if (waterAnimateRef.current) waterAnimateRef.current();
       if (currentVecRef.current) currentVecRef.current.animate();
       if (vesselAnimateRef.current) vesselAnimateRef.current();
+      if (channelAnimateRef.current) channelAnimateRef.current();
+
+      // 선박-위험구역 충돌 감지
+      if (dangerCheckRef.current && layerGroupsRef.current["vessels"]) {
+        let anyInZone = false;
+        const vesselGroup = layerGroupsRef.current["vessels"] as THREE.Group;
+        for (const child of vesselGroup.children) {
+          if (dangerCheckRef.current.check(child.position.x, child.position.z)) {
+            anyInZone = true;
+            break;
+          }
+        }
+        dangerCheckRef.current.setAlert(anyInZone);
+      }
+      if (dangerAnimateRef.current) dangerAnimateRef.current();
+      if (pollutionAnimateRef.current) pollutionAnimateRef.current();
       renderer.render(scene, camera);
     };
     animate();
@@ -200,11 +223,31 @@ export default function ThreeMapView() {
     scene.add(vesselGroup);
     vesselAnimateRef.current = vesselAnimate;
     layerGroupsRef.current["vessels"] = vesselGroup;
+
+    // 항로/정박지
+    const { group: channelGroup, animate: channelAnimate } = createChannels();
+    scene.add(channelGroup);
+    channelAnimateRef.current = channelAnimate;
+    layerGroupsRef.current["channels"] = channelGroup;
+
+    // 위험구역
+    const { group: dangerGroup, animate: dangerAnimate, checkVesselInZone, setAlert } = createDangerZones();
+    scene.add(dangerGroup);
+    dangerAnimateRef.current = dangerAnimate;
+    dangerCheckRef.current = { check: checkVesselInZone, setAlert };
+    layerGroupsRef.current["dangerZones"] = dangerGroup;
+
+    // 오염 확산
+    const { group: pollutionGroup, animate: pollutionAnimate } = createPollution();
+    scene.add(pollutionGroup);
+    pollutionAnimateRef.current = pollutionAnimate;
+    layerGroupsRef.current["pollution"] = pollutionGroup;
+    pollutionGroup.visible = false; // 기본 OFF
   }
 
   // 레이어 토글
   useEffect(() => {
-    const keys = ["facilities", "grid", "currentFlow", "vessels"];
+    const keys = ["facilities", "grid", "currentFlow", "vessels", "channels", "dangerZones", "pollution"];
     for (const key of keys) {
       const obj = layerGroupsRef.current[key];
       if (obj) {
@@ -222,7 +265,7 @@ export default function ThreeMapView() {
     if (currentVecRef.current) {
       currentVecRef.current.setSeabedVisible(layers.seabed);
     }
-  }, [layers.facilities, layers.grid, layers.seabed, layers.currentFlow, layers.vessels]);
+  }, [layers.facilities, layers.grid, layers.seabed, layers.currentFlow, layers.vessels, layers.channels, layers.dangerZones, layers.pollution]);
 
   return <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 }} />;
 }

@@ -7,6 +7,9 @@ const LAYERS = [
   { key: "seabed", label: "해저지형", icon: "▦" },
   { key: "currentFlow", label: "해류 벡터", icon: "〰" },
   { key: "vessels", label: "선박", icon: "▷" },
+  { key: "channels", label: "항로/정박지", icon: "⬡" },
+  { key: "dangerZones", label: "위험구역", icon: "△" },
+  { key: "pollution", label: "오염 확산", icon: "⊗" },
   { key: "grid", label: "격자", icon: "▤" },
 ];
 
