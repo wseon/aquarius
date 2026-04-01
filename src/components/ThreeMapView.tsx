@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import * as THREE from "three";
 // OrbitControls 대신 직접 카메라 컨트롤 구현
 import { useLayerStore } from "@/stores/layerStore";
@@ -15,6 +15,9 @@ import { createPollution } from "./three/Pollution";
 import { createWaterSurface } from "./three/WaterSurface";
 
 export default function ThreeMapView() {
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadLabel, setLoadLabel] = useState("초기화 중...");
+  const [loaded, setLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -186,57 +189,66 @@ export default function ThreeMapView() {
   }, []);
 
   async function loadAll(scene: THREE.Scene) {
-    // 지형 데이터 로드
+    setLoadLabel("지형 데이터 로딩...");
+    setLoadProgress(5);
     const wmRes = await fetch("/api/terrain-watermap");
     const wmData = await wmRes.json();
 
-    // 지형 메시 2종
+    setLoadLabel("지형 메시 생성...");
+    setLoadProgress(15);
     const { seabedMesh, surfaceMesh, animateSurface } = await createTerrainMesh();
-    scene.add(seabedMesh);   // 육지 + 해저지형
-    scene.add(surfaceMesh);  // 육지 + 해수면
+    scene.add(seabedMesh);
+    scene.add(surfaceMesh);
     layerGroupsRef.current["seabed"] = seabedMesh;
     layerGroupsRef.current["surfaceTerrain"] = surfaceMesh;
     waterAnimateRef.current = animateSurface;
-    // 기본: seabed ON → surfaceMesh OFF
     surfaceMesh.visible = false;
+    setLoadProgress(35);
 
-    // 건물 (육지 위)
+    setLoadLabel("건물 로딩...");
     const buildings = await createBuildings();
     scene.add(buildings);
     layerGroupsRef.current["facilities"] = buildings;
+    setLoadProgress(55);
 
-    // 해류 벡터
+    setLoadLabel("해류 데이터 로딩...");
     const currentVec = new CurrentVectorSystem();
     await currentVec.load();
     scene.add(currentVec.group);
     currentVecRef.current = currentVec;
     layerGroupsRef.current["currentFlow"] = currentVec.group;
+    setLoadProgress(70);
 
-    // 선박
+    setLoadLabel("선박 로딩...");
     const { group: vesselGroup, animate: vesselAnimate } = await createVessels();
     scene.add(vesselGroup);
     vesselAnimateRef.current = vesselAnimate;
     layerGroupsRef.current["vessels"] = vesselGroup;
+    setLoadProgress(80);
 
-    // 항로/정박지
+    setLoadLabel("항로/위험구역 로딩...");
     const { group: channelGroup, animate: channelAnimate } = createChannels();
     scene.add(channelGroup);
     channelAnimateRef.current = channelAnimate;
     layerGroupsRef.current["channels"] = channelGroup;
 
-    // 위험구역
     const { group: dangerGroup, animate: dangerAnimate, checkVesselInZone, setAlert } = createDangerZones();
     scene.add(dangerGroup);
     dangerAnimateRef.current = dangerAnimate;
     dangerCheckRef.current = { check: checkVesselInZone, setAlert };
     layerGroupsRef.current["dangerZones"] = dangerGroup;
+    setLoadProgress(90);
 
-    // 오염 확산
+    setLoadLabel("오염 확산 시뮬레이션...");
     const { group: pollutionGroup, animate: pollutionAnimate } = createPollution();
     scene.add(pollutionGroup);
     pollutionAnimateRef.current = pollutionAnimate;
     layerGroupsRef.current["pollution"] = pollutionGroup;
-    pollutionGroup.visible = false; // 기본 OFF
+    pollutionGroup.visible = false;
+
+    setLoadProgress(100);
+    setLoadLabel("완료");
+    setTimeout(() => setLoaded(true), 500);
   }
 
   // 레이어 토글
@@ -261,5 +273,23 @@ export default function ThreeMapView() {
     }
   }, [layers.facilities, layers.grid, layers.seabed, layers.currentFlow, layers.vessels, layers.channels, layers.dangerZones, layers.pollution]);
 
-  return <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 }} />;
+  return (
+    <>
+      <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 }} />
+      {!loaded && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#080c14] z-50">
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-white mb-4">관제시스템</h2>
+            <div className="w-72 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-cyan-500 rounded-full transition-all duration-300"
+                style={{ width: `${loadProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">{loadLabel} ({loadProgress}%)</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

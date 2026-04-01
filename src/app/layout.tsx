@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "인천항(북항) 3D 해양관제",
+  title: "관제시스템",
   description: "수심별 흐름과 위험구역의 공간적 관계를 3D로 시각화",
 };
 
