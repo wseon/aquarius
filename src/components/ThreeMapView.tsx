@@ -148,7 +148,6 @@ export default function ThreeMapView() {
     // Animation loop
     const animate = () => {
       requestAnimationFrame(animate);
-      if (waterAnimateRef.current) waterAnimateRef.current();
       if (currentVecRef.current) currentVecRef.current.animate();
       if (vesselAnimateRef.current) vesselAnimateRef.current();
       if (channelAnimateRef.current) channelAnimateRef.current();
@@ -190,21 +189,14 @@ export default function ThreeMapView() {
     const wmRes = await fetch("/api/terrain-watermap");
     const wmData = await wmRes.json();
 
-    // 육지 + 해저 분리 메시
-    const { land, seabed } = await createTerrainMesh();
-    scene.add(land);    // 항상 보임
-    scene.add(seabed);  // 토글
-    layerGroupsRef.current["seabed"] = seabed;
-
-    // 해수면 (물결 애니메이션)
-    const { mesh: water, animate: waterAnimate } = createWaterSurface(
-      wmData.lats, wmData.lons, wmData.waterMap
-    );
-    scene.add(water);
-    layerGroupsRef.current["waterSurface"] = water;
-    waterAnimateRef.current = waterAnimate;
-    // 기본: seabed ON → 해수면 OFF
-    water.visible = false;
+    // 지형 메시 2종
+    const { seabedMesh, surfaceMesh } = await createTerrainMesh();
+    scene.add(seabedMesh);   // 육지 + 해저지형
+    scene.add(surfaceMesh);  // 육지 + 해수면
+    layerGroupsRef.current["seabed"] = seabedMesh;
+    layerGroupsRef.current["surfaceTerrain"] = surfaceMesh;
+    // 기본: seabed ON → surfaceMesh OFF
+    surfaceMesh.visible = false;
 
     // 건물 (육지 위)
     const buildings = await createBuildings();
@@ -255,11 +247,11 @@ export default function ThreeMapView() {
       }
     }
 
-    // seabed 토글: ON=해저지형, OFF=해수면
+    // seabed 토글: ON=육지+해저지형, OFF=육지+해수면
     const seabedObj = layerGroupsRef.current["seabed"];
-    const water = layerGroupsRef.current["waterSurface"];
+    const surfaceObj = layerGroupsRef.current["surfaceTerrain"];
     if (seabedObj) seabedObj.visible = layers.seabed;
-    if (water) water.visible = !layers.seabed;
+    if (surfaceObj) surfaceObj.visible = !layers.seabed;
 
     // 해류: 중층/저층은 해저지형 ON일 때만
     if (currentVecRef.current) {
