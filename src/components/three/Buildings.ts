@@ -8,7 +8,14 @@ export async function createBuildings(): Promise<THREE.Group> {
   const res = await fetch("/api/buildings");
   const geojson = await res.json();
 
-  const material = new THREE.MeshPhongMaterial({
+  // 건물별 색상 로드
+  let colorMap: Record<string, number[]> = {};
+  try {
+    const colorRes = await fetch("/api/building-colors");
+    colorMap = await colorRes.json();
+  } catch {}
+
+  const defaultMaterial = new THREE.MeshPhongMaterial({
     color: 0x6a7a8a,
     transparent: true,
     opacity: 0.9,
@@ -22,6 +29,21 @@ export async function createBuildings(): Promise<THREE.Group> {
       geomType === "MultiPolygon"
         ? feature.geometry.coordinates.map((p: number[][][]) => p[0])
         : [feature.geometry.coordinates[0]];
+
+    // 건물 중심 좌표로 색상 찾기
+    const allCoords = rings[0] || [];
+    const avgLat = allCoords.reduce((s: number, c: number[]) => s + (c[1] || 0), 0) / (allCoords.length || 1);
+    const avgLon = allCoords.reduce((s: number, c: number[]) => s + (c[0] || 0), 0) / (allCoords.length || 1);
+    const colorKey = `${avgLat.toFixed(5)},${avgLon.toFixed(5)}`;
+    const rgb = colorMap[colorKey];
+
+    const material = rgb
+      ? new THREE.MeshPhongMaterial({
+          color: new THREE.Color(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255),
+          transparent: true,
+          opacity: 0.9,
+        })
+      : defaultMaterial;
 
     for (const ring of rings) {
       if (!ring || !Array.isArray(ring[0])) continue;
