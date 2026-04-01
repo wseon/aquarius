@@ -175,9 +175,9 @@ export async function createTerrainMesh(): Promise<{ seabedMesh: THREE.Group; su
 
       // 파도 높이별 색상 (진한 파랑 ~ 밝은 청록)
       const t = (wave + 5) / 10; // 0~1
-      const r = 0.02 + t * 0.12;
-      const g = 0.12 + t * 0.35;
-      const b = 0.40 + t * 0.40;
+      const r = 0.02 + t * 0.10;
+      const g = 0.15 + t * 0.25;
+      const b = 0.50 + t * 0.30;
       colAttr.setXYZ(i, r, g, b);
     }
 
