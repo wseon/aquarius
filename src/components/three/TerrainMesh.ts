@@ -106,10 +106,22 @@ function buildUnifiedMesh(
     side: THREE.DoubleSide,
   });
 
-  return new THREE.Mesh(geometry, material);
+  const mesh = new THREE.Mesh(geometry, material);
+
+  // 육지 경계 엣지 라인 (각도 15도 이상 꺾이는 곳만)
+  const edgeGeo = new THREE.EdgesGeometry(geometry, 15);
+  const edgeMat = new THREE.LineBasicMaterial({
+    color: 0x444444,
+    transparent: true,
+    opacity: 0.5,
+  });
+  const edges = new THREE.LineSegments(edgeGeo, edgeMat);
+  mesh.add(edges);
+
+  return mesh;
 }
 
-export async function createTerrainMesh(): Promise<{ seabedMesh: THREE.Group; surfaceMesh: THREE.Group }> {
+export async function createTerrainMesh(): Promise<{ seabedMesh: THREE.Group; surfaceMesh: THREE.Group; animateSurface: () => void }> {
   const res = await fetch("/api/terrain-watermap");
   const data = await res.json();
   const { lats, lons, waterMap, depthMap } = data;
@@ -122,8 +134,57 @@ export async function createTerrainMesh(): Promise<{ seabedMesh: THREE.Group; su
   // 2. 육지 + 해수면
   const surfaceGroup = new THREE.Group();
   surfaceGroup.name = "surfaceTerrain";
-  surfaceGroup.add(buildUnifiedMesh(lats, lons, waterMap, null, "surface"));
+  const surfaceMeshObj = buildUnifiedMesh(lats, lons, waterMap, null, "surface");
+  surfaceGroup.add(surfaceMeshObj);
 
-  console.log(`지형 메시: 통합(seabed) + 통합(surface) 생성 완료`);
-  return { seabedMesh: seabedGroup, surfaceMesh: surfaceGroup };
+  // 파도 애니메이션용 — 바다 정점 인덱스 기록
+  const surfaceGeo = surfaceMeshObj.geometry;
+  const posAttr = surfaceGeo.getAttribute("position") as THREE.BufferAttribute;
+  const colAttr = surfaceGeo.getAttribute("color") as THREE.BufferAttribute;
+  const vertCount = posAttr.count;
+
+  // 원본 Y, 바다 여부 기록
+  const origY = new Float32Array(vertCount);
+  const isWaterVert = new Uint8Array(vertCount);
+  for (let i = 0; i < vertCount; i++) {
+    origY[i] = posAttr.getY(i);
+    // 육지 Y=0, 바다 Y=WATER_SURFACE_Y(-21) — Y < -5이면 바다
+    isWaterVert[i] = posAttr.getY(i) < -5 ? 1 : 0;
+  }
+
+  let time = 0;
+  const animateSurface = () => {
+    if (!surfaceGroup.visible) return;
+    time += 0.008;
+
+    for (let i = 0; i < vertCount; i++) {
+      if (!isWaterVert[i]) continue;
+
+      const x = posAttr.getX(i);
+      const z = posAttr.getZ(i);
+
+      // 다중 주파수 파도
+      const wave1 = Math.sin(x * 0.015 + time * 1.0) * 1.8;
+      const wave2 = Math.sin(z * 0.012 + time * 0.7) * 1.4;
+      const wave3 = Math.sin((x + z) * 0.008 + time * 1.5) * 1.0;
+      const wave4 = Math.cos(x * 0.025 - time * 0.5) * 0.6;
+      const wave5 = Math.sin(x * 0.04 + z * 0.03 + time * 2.0) * 0.4;
+      const wave = wave1 + wave2 + wave3 + wave4 + wave5;
+
+      posAttr.setY(i, origY[i] + wave);
+
+      // 파도 높이별 색상 (진한 파랑 ~ 밝은 청록)
+      const t = (wave + 5) / 10; // 0~1
+      const r = 0.02 + t * 0.12;
+      const g = 0.12 + t * 0.35;
+      const b = 0.40 + t * 0.40;
+      colAttr.setXYZ(i, r, g, b);
+    }
+
+    posAttr.needsUpdate = true;
+    colAttr.needsUpdate = true;
+  };
+
+  console.log(`지형 메시: 통합(seabed) + 통합(surface+파도) 생성 완료`);
+  return { seabedMesh: seabedGroup, surfaceMesh: surfaceGroup, animateSurface };
 }

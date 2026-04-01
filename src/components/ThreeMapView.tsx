@@ -148,6 +148,7 @@ export default function ThreeMapView() {
     // Animation loop
     const animate = () => {
       requestAnimationFrame(animate);
+      if (waterAnimateRef.current) waterAnimateRef.current();
       if (currentVecRef.current) currentVecRef.current.animate();
       if (vesselAnimateRef.current) vesselAnimateRef.current();
       if (channelAnimateRef.current) channelAnimateRef.current();
@@ -190,11 +191,12 @@ export default function ThreeMapView() {
     const wmData = await wmRes.json();
 
     // 지형 메시 2종
-    const { seabedMesh, surfaceMesh } = await createTerrainMesh();
+    const { seabedMesh, surfaceMesh, animateSurface } = await createTerrainMesh();
     scene.add(seabedMesh);   // 육지 + 해저지형
     scene.add(surfaceMesh);  // 육지 + 해수면
     layerGroupsRef.current["seabed"] = seabedMesh;
     layerGroupsRef.current["surfaceTerrain"] = surfaceMesh;
+    waterAnimateRef.current = animateSurface;
     // 기본: seabed ON → surfaceMesh OFF
     surfaceMesh.visible = false;
 
