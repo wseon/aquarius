@@ -11,7 +11,7 @@ import { CurrentVectorSystem } from "./three/CurrentVectors";
 import { createVessels } from "./three/Vessels";
 import { createChannels } from "./three/Channels";
 import { createDangerZones } from "./three/DangerZones";
-import { createPollution } from "./three/Pollution";
+import { PollutionSystem } from "./three/Pollution";
 import { createWaterSurface } from "./three/WaterSurface";
 
 export default function ThreeMapView() {
@@ -30,8 +30,15 @@ export default function ThreeMapView() {
   const channelAnimateRef = useRef<(() => void) | null>(null);
   const dangerAnimateRef = useRef<(() => void) | null>(null);
   const dangerCheckRef = useRef<{ check: (x: number, z: number) => boolean; setAlert: (a: boolean) => void } | null>(null);
-  const pollutionAnimateRef = useRef<(() => void) | null>(null);
+  const pollutionRef = useRef<PollutionSystem | null>(null);
+  const [pollutionMode, setPollutionMode] = useState<"off" | "marine" | "air">("off");
+  const pollutionModeRef = useRef<"off" | "marine" | "air">("off");
+  const [marineCount, setMarineCount] = useState(0);
+  const [airCount, setAirCount] = useState(0);
   const layers = useLayerStore();
+
+  useEffect(() => { pollutionModeRef.current = pollutionMode; }, [pollutionMode]);
+  const totalPollution = marineCount + airCount;
 
   useEffect(() => {
     if (!containerRef.current || rendererRef.current) return;
@@ -81,11 +88,17 @@ export default function ThreeMapView() {
     // 초기 뷰 적용
     updateCamera();
 
+    // Raycaster (건물 클릭 감지)
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let pointerDownPos = { x: 0, y: 0 };
+
     canvas.addEventListener("pointerdown", (e) => {
       isDragging = true;
       dragButton = e.button;
       lastX = e.clientX;
       lastY = e.clientY;
+      pointerDownPos = { x: e.clientX, y: e.clientY };
       canvas.setPointerCapture(e.pointerId);
     });
 
@@ -119,6 +132,45 @@ export default function ThreeMapView() {
     canvas.addEventListener("pointerup", (e) => {
       isDragging = false;
       canvas.releasePointerCapture(e.pointerId);
+
+      // 클릭 판별 (이동 5px 미만이면 클릭)
+      const ddx = e.clientX - pointerDownPos.x;
+      const ddy = e.clientY - pointerDownPos.y;
+      const mode = pollutionModeRef.current;
+      if (Math.sqrt(ddx * ddx + ddy * ddy) < 5 && e.button === 0 && mode !== "off") {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        if (mode === "air") {
+          // 대기 오염 — 건물 클릭
+          const buildings = layerGroupsRef.current["facilities"];
+          if (buildings) {
+            const intersects = raycaster.intersectObjects(buildings.children, true);
+            if (intersects.length > 0 && pollutionRef.current) {
+              pollutionRef.current.addAirSource(intersects[0].point);
+              setAirCount(pollutionRef.current.getCount("air"));
+              pollutionRef.current.group.visible = true;
+            }
+          }
+        } else if (mode === "marine") {
+          // 해양 오염 — 지형(바다) 클릭
+          const terrain = layerGroupsRef.current["seabed"] || layerGroupsRef.current["surfaceTerrain"];
+          if (terrain) {
+            const intersects = raycaster.intersectObjects(terrain.children, true);
+            if (intersects.length > 0 && pollutionRef.current) {
+              const hit = intersects[0].point;
+              // Y < 0 이면 바다 영역
+              if (hit.y < 0) {
+                pollutionRef.current.addMarineSource(hit);
+                setMarineCount(pollutionRef.current.getCount("marine"));
+                pollutionRef.current.group.visible = true;
+              }
+            }
+          }
+        }
+      }
     });
 
     canvas.addEventListener("wheel", (e) => {
@@ -169,7 +221,7 @@ export default function ThreeMapView() {
         dangerCheckRef.current.setAlert(anyInZone);
       }
       if (dangerAnimateRef.current) dangerAnimateRef.current();
-      if (pollutionAnimateRef.current) pollutionAnimateRef.current();
+      if (pollutionRef.current) pollutionRef.current.animate();
       renderer.render(scene, camera);
     };
     animate();
@@ -239,12 +291,12 @@ export default function ThreeMapView() {
     layerGroupsRef.current["dangerZones"] = dangerGroup;
     setLoadProgress(90);
 
-    setLoadLabel("오염 확산 시뮬레이션...");
-    const { group: pollutionGroup, animate: pollutionAnimate } = createPollution();
-    scene.add(pollutionGroup);
-    pollutionAnimateRef.current = pollutionAnimate;
-    layerGroupsRef.current["pollution"] = pollutionGroup;
-    pollutionGroup.visible = false;
+    setLoadLabel("오염 확산 시스템 초기화...");
+    const pollution = new PollutionSystem();
+    scene.add(pollution.group);
+    pollutionRef.current = pollution;
+    layerGroupsRef.current["pollution"] = pollution.group;
+    pollution.group.visible = false;
 
     setLoadProgress(100);
     setLoadLabel("완료");
@@ -288,6 +340,55 @@ export default function ThreeMapView() {
             </div>
             <p className="text-xs text-gray-500 mt-2">{loadLabel} ({loadProgress}%)</p>
           </div>
+        </div>
+      )}
+
+      {/* 오염원 지정 모드 */}
+      {loaded && (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
+          <button
+            onClick={() => setPollutionMode(pollutionMode === "marine" ? "off" : "marine")}
+            className={`px-3 py-1.5 text-xs rounded border transition-colors ${
+              pollutionMode === "marine"
+                ? "bg-red-500/30 border-red-500 text-red-300"
+                : "bg-[#0a0f1a]/90 border-gray-700 text-gray-400 hover:border-gray-500"
+            }`}
+          >
+            {pollutionMode === "marine" ? "바다를 클릭..." : "해양 오염"}
+          </button>
+
+          <button
+            onClick={() => setPollutionMode(pollutionMode === "air" ? "off" : "air")}
+            className={`px-3 py-1.5 text-xs rounded border transition-colors ${
+              pollutionMode === "air"
+                ? "bg-gray-400/30 border-gray-400 text-gray-200"
+                : "bg-[#0a0f1a]/90 border-gray-700 text-gray-400 hover:border-gray-500"
+            }`}
+          >
+            {pollutionMode === "air" ? "건물을 클릭..." : "대기 오염"}
+          </button>
+
+          {totalPollution > 0 && (
+            <>
+              <span className="text-[10px] text-gray-400">
+                {marineCount > 0 && <span className="text-red-400">해양 {marineCount}</span>}
+                {marineCount > 0 && airCount > 0 && " / "}
+                {airCount > 0 && <span className="text-gray-300">대기 {airCount}</span>}
+              </span>
+              <button
+                onClick={() => {
+                  if (pollutionRef.current) {
+                    pollutionRef.current.removeAll();
+                    setMarineCount(0);
+                    setAirCount(0);
+                  }
+                }}
+                className="px-2 py-1 text-[10px] bg-gray-800 border border-gray-700 text-gray-400 rounded hover:text-white"
+              >
+                초기화
+              </button>
+            </>
+          )}
         </div>
       )}
     </>
