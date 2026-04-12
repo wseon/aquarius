@@ -71,9 +71,14 @@ export async function createBuildings(): Promise<THREE.Group> {
         };
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         const mesh = new THREE.Mesh(geometry, material);
-        // ExtrudeGeometry는 Z방향으로 돌출 → 회전해서 Y(위)방향으로
         mesh.rotation.x = -Math.PI / 2;
-        mesh.position.y = 0; // 육지면(Y=0) 위에 배치
+        mesh.position.y = 0;
+        // 건물 정보 저장
+        mesh.userData = {
+          buildingType: feature.properties.building || "unknown",
+          buildingHeight: height,
+          buildingName: feature.properties.name || "",
+        };
         group.add(mesh);
       } catch {
         // 잘못된 geometry 스킵

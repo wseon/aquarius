@@ -35,6 +35,19 @@ export default function ThreeMapView() {
   const pollutionModeRef = useRef<"off" | "marine" | "air">("off");
   const [marineCount, setMarineCount] = useState(0);
   const [airCount, setAirCount] = useState(0);
+  const [buildingInfo, setBuildingInfo] = useState<{
+    type: string;
+    height: number;
+    name: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [vesselInfo, setVesselInfo] = useState<{
+    data: any;
+    x: number;
+    y: number;
+  } | null>(null);
+  const selectedBuildingRef = useRef<{ mesh: THREE.Mesh; originalColor: THREE.Color } | null>(null);
   const layers = useLayerStore();
 
   useEffect(() => { pollutionModeRef.current = pollutionMode; }, [pollutionMode]);
@@ -104,6 +117,9 @@ export default function ThreeMapView() {
 
     canvas.addEventListener("pointermove", (e) => {
       if (!isDragging) return;
+      // 드래그 시작하면 팝업 제거
+      setBuildingInfo(null);
+      setVesselInfo(null);
       const dx = e.clientX - lastX;
       const dy = e.clientY - lastY;
       lastX = e.clientX;
@@ -136,8 +152,71 @@ export default function ThreeMapView() {
       // 클릭 판별 (이동 5px 미만이면 클릭)
       const ddx = e.clientX - pointerDownPos.x;
       const ddy = e.clientY - pointerDownPos.y;
+      const isClick = Math.sqrt(ddx * ddx + ddy * ddy) < 5 && e.button === 0;
       const mode = pollutionModeRef.current;
-      if (Math.sqrt(ddx * ddx + ddy * ddy) < 5 && e.button === 0 && mode !== "off") {
+
+      // 일반 클릭 — 건물 정보 표시 + 하이라이트
+      if (isClick && mode === "off") {
+        // 이전 하이라이트 복원
+        if (selectedBuildingRef.current) {
+          const prev = selectedBuildingRef.current;
+          const mat = prev.mesh.material as THREE.MeshPhongMaterial;
+          mat.color.copy(prev.originalColor);
+          mat.emissive.setHex(0x000000);
+          selectedBuildingRef.current = null;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        setVesselInfo(null);
+        setBuildingInfo(null);
+
+        // 선박 체크
+        const vessels = layerGroupsRef.current["vessels"];
+        if (vessels) {
+          const vIntersects = raycaster.intersectObjects(vessels.children, true);
+          if (vIntersects.length > 0) {
+            // vesselRoot 찾기
+            let obj: THREE.Object3D | null = vIntersects[0].object;
+            while (obj && !obj.userData.vesselData) {
+              obj = obj.userData.vesselRoot || obj.parent;
+            }
+            if (obj?.userData.vesselData) {
+              setVesselInfo({ data: obj.userData.vesselData, x: e.clientX, y: e.clientY });
+              return; // 선박 히트 시 건물 체크 스킵
+            }
+          }
+        }
+
+        // 건물 체크
+        const buildings = layerGroupsRef.current["facilities"];
+        if (buildings) {
+          const intersects = raycaster.intersectObjects(buildings.children, true);
+          if (intersects.length > 0) {
+            const hit = intersects[0].object as THREE.Mesh;
+            const ud = hit.userData;
+
+            const mat = hit.material as THREE.MeshPhongMaterial;
+            const origColor = mat.color.clone();
+            mat.color.set(0xcc3333);
+            mat.emissive.set(0x441111);
+            selectedBuildingRef.current = { mesh: hit, originalColor: origColor };
+
+            setBuildingInfo({
+              type: ud.buildingType || "unknown",
+              height: ud.buildingHeight || 0,
+              name: ud.buildingName || "",
+              x: e.clientX,
+              y: e.clientY,
+            });
+          }
+        }
+      }
+
+      if (isClick && mode !== "off") {
         const rect = canvas.getBoundingClientRect();
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -293,6 +372,7 @@ export default function ThreeMapView() {
 
     setLoadLabel("오염 확산 시스템 초기화...");
     const pollution = new PollutionSystem();
+    await pollution.loadCurrentData();
     scene.add(pollution.group);
     pollutionRef.current = pollution;
     layerGroupsRef.current["pollution"] = pollution.group;
@@ -339,6 +419,61 @@ export default function ThreeMapView() {
               />
             </div>
             <p className="text-xs text-gray-500 mt-2">{loadLabel} ({loadProgress}%)</p>
+          </div>
+        </div>
+      )}
+
+      {/* 건물 정보 팝업 */}
+      {buildingInfo && (
+        <div
+          className="absolute z-30 pointer-events-none"
+          style={{ left: buildingInfo.x + 12, top: buildingInfo.y - 60 }}
+        >
+          <div className="bg-[#0a0f1a]/95 border border-gray-600/50 rounded-lg px-3 py-2 shadow-lg min-w-[140px]">
+            {buildingInfo.name && (
+              <p className="text-xs font-bold text-white mb-1">{buildingInfo.name}</p>
+            )}
+            <div className="space-y-0.5 text-[10px]">
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">유형</span>
+                <span className="text-gray-300">{buildingInfo.type}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">높이</span>
+                <span className="text-gray-300">{buildingInfo.height}m</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 선박 AIS 정보 팝업 */}
+      {vesselInfo && (
+        <div
+          className="absolute z-30 pointer-events-none"
+          style={{ left: vesselInfo.x + 12, top: vesselInfo.y - 180 }}
+        >
+          <div className="bg-[#0a0f1a]/95 border border-cyan-600/50 rounded-lg px-3 py-2 shadow-lg min-w-[200px]">
+            <div className="flex items-center gap-2 mb-1.5 border-b border-gray-700/50 pb-1.5">
+              <span className="text-xs font-bold text-cyan-400">{vesselInfo.data.name}</span>
+              <span className="text-[9px] text-gray-500">({vesselInfo.data.flag})</span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px]">
+              <div className="flex justify-between"><span className="text-gray-500">MMSI</span><span className="text-gray-300">{vesselInfo.data.mmsi}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">호출부호</span><span className="text-gray-300">{vesselInfo.data.callSign}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">선종</span><span className="text-gray-300">{vesselInfo.data.type} ({vesselInfo.data.typeCode})</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">상태</span><span className="text-gray-300">{vesselInfo.data.status}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">SOG</span><span className="text-gray-300">{vesselInfo.data.sog} kn</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">COG</span><span className="text-gray-300">{vesselInfo.data.cog}°</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">선수방향</span><span className="text-gray-300">{vesselInfo.data.heading}°</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">흘수</span><span className="text-gray-300">{vesselInfo.data.draft}m</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">길이/폭</span><span className="text-gray-300">{vesselInfo.data.length}m/{vesselInfo.data.width}m</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">위치</span><span className="text-gray-300">{vesselInfo.data.lat.toFixed(4)},{vesselInfo.data.lon.toFixed(4)}</span></div>
+            </div>
+            <div className="mt-1.5 pt-1.5 border-t border-gray-700/50 text-[10px]">
+              <div className="flex justify-between"><span className="text-gray-500">목적지</span><span className="text-gray-300">{vesselInfo.data.destination}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">ETA</span><span className="text-gray-300">{vesselInfo.data.eta}</span></div>
+            </div>
           </div>
         </div>
       )}

@@ -4,13 +4,23 @@ import { latLonToLocal } from "./coords";
 interface VesselData {
   mmsi: string;
   name: string;
+  callSign?: string;
   type: string;
+  typeCode?: number;
   lat: number;
   lon: number;
   heading: number;
+  cog?: number;
   speed: number;
+  sog?: number;
   status: string;
+  navStatus?: number;
   length: number;
+  width?: number;
+  draft?: number;
+  destination?: string;
+  eta?: string;
+  flag?: string;
 }
 
 const STATUS_COLOR: Record<string, number> = {
@@ -153,6 +163,32 @@ export async function createVessels(): Promise<{
     const light = new THREE.Mesh(lightGeo, lightMat);
     light.position.set(0, v.length * 0.06 * 4, 0);
     ship.add(light);
+
+    // AIS 정보 저장
+    ship.userData = {
+      vesselData: {
+        mmsi: v.mmsi,
+        name: v.name,
+        callSign: v.callSign || "",
+        type: v.type,
+        typeCode: v.typeCode || 0,
+        heading: v.heading,
+        cog: v.cog || v.heading,
+        sog: v.sog || v.speed,
+        status: v.status,
+        navStatus: v.navStatus || 0,
+        length: v.length,
+        width: v.width || 0,
+        draft: v.draft || 0,
+        destination: v.destination || "",
+        eta: v.eta || "",
+        flag: v.flag || "",
+        lat: v.lat,
+        lon: v.lon,
+      },
+    };
+    // 자식 mesh에도 전파 (raycast가 자식을 히트할 수 있음)
+    ship.traverse((child) => { child.userData.vesselRoot = ship; });
 
     group.add(ship);
 
