@@ -38,12 +38,10 @@ export class PollutionSystem {
   }
 
   // 해류 데이터 로드
-  async loadCurrentData() {
+  async loadCurrentData(hour: number = 12) {
     try {
       const res = await fetch("/api/current-vectors");
       const data = await res.json();
-      // 현재 시간의 표층 해류 가져오기
-      const hour = new Date().getHours();
       const vectors = data.hours?.[String(hour)] || data.hours?.["12"] || [];
       this.currentVectors = vectors
         .filter((v: any) => v.layer === "surface")
@@ -118,9 +116,9 @@ export class PollutionSystem {
       heights[i] = Math.random() * 5;
 
       if (isMarine) {
-        positions[i * 3] = sourcePos.x + Math.cos(angles[i]) * distances[i];
+        positions[i * 3] = sourcePos.x + Math.sin(angles[i]) * distances[i];
         positions[i * 3 + 1] = baseY + (Math.random() - 0.5) * 2;
-        positions[i * 3 + 2] = sourcePos.z + Math.sin(angles[i]) * distances[i];
+        positions[i * 3 + 2] = sourcePos.z - Math.cos(angles[i]) * distances[i];
         // 진한 빨강/갈색
         colors[i * 3] = 0.6 + Math.random() * 0.2;
         colors[i * 3 + 1] = 0.05 + Math.random() * 0.1;
@@ -205,9 +203,9 @@ export class PollutionSystem {
           // 약간의 각도 변동
           src.angles[i] += (Math.random() - 0.5) * 0.015;
 
-          // 자체 확산 + 해류 드리프트
-          const selfX = Math.cos(src.angles[i]) * src.distances[i];
-          const selfZ = Math.sin(src.angles[i]) * src.distances[i];
+          // 자체 확산 (해류 방향 좌표계) + 해류 드리프트
+          const selfX = Math.sin(src.angles[i]) * src.distances[i];
+          const selfZ = -Math.cos(src.angles[i]) * src.distances[i];
           const driftX = flowDx * src.distances[i] * 0.8;
           const driftZ = flowDz * src.distances[i] * 0.8;
 

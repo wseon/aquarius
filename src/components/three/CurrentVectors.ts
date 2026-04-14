@@ -46,6 +46,42 @@ export class CurrentVectorSystem {
     this.buildParticles(this.currentHour);
   }
 
+  // 특정 좌표에서 가장 가까운 수층별 해류 조회
+  queryAtPosition(localX: number, localZ: number): { layer: string; speed: number; direction: number }[] | null {
+    if (!this.allData) return null;
+    const vectors = this.allData[String(this.currentHour)] || [];
+    if (vectors.length === 0) return null;
+
+    // 로컬 좌표 → 가장 가까운 벡터 찾기 (수층별)
+    const layers = ["surface", "mid", "bottom"];
+    const result: { layer: string; speed: number; direction: number }[] = [];
+
+    for (const layerName of layers) {
+      const layerVecs = vectors.filter((v: VectorData) => v.layer === layerName);
+      let bestDist = Infinity;
+      let bestVec: VectorData | null = null;
+
+      for (const v of layerVecs) {
+        const local = latLonToLocal(v.lat, v.lon, 0);
+        const dist = Math.sqrt((local.x - localX) ** 2 + (local.z - localZ) ** 2);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestVec = v;
+        }
+      }
+
+      if (bestVec) {
+        result.push({
+          layer: layerName === "surface" ? "표층 (0-5m)" : layerName === "mid" ? "중층 (5-15m)" : "저층 (15m+)",
+          speed: bestVec.speed,
+          direction: bestVec.direction,
+        });
+      }
+    }
+
+    return result.length > 0 ? result : null;
+  }
+
   setHour(hour: number) {
     if (hour === this.currentHour) return;
     this.currentHour = hour;

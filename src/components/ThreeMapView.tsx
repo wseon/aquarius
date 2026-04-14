@@ -12,6 +12,8 @@ import { createVessels } from "./three/Vessels";
 import { createChannels } from "./three/Channels";
 import { createDangerZones } from "./three/DangerZones";
 import { PollutionSystem } from "./three/Pollution";
+import OceanInfoPopup from "./ui/OceanInfoPopup";
+import Compass, { compassHeadingRef } from "./ui/Compass";
 import { createWaterSurface } from "./three/WaterSurface";
 
 export default function ThreeMapView() {
@@ -47,11 +49,20 @@ export default function ThreeMapView() {
     x: number;
     y: number;
   } | null>(null);
+  const [oceanInfo, setOceanInfo] = useState<{
+    depth: number;
+    currents: { layer: string; speed: number; direction: number }[];
+    x: number;
+    y: number;
+  } | null>(null);
   const selectedBuildingRef = useRef<{ mesh: THREE.Mesh; originalColor: THREE.Color } | null>(null);
   const layers = useLayerStore();
 
   useEffect(() => { pollutionModeRef.current = pollutionMode; }, [pollutionMode]);
   const totalPollution = marineCount + airCount;
+  const timeHour = useLayerStore((s) => s.timeHour);
+
+  // 낮/밤 모드 — 비활성 (비교용)
 
   useEffect(() => {
     if (!containerRef.current || rendererRef.current) return;
@@ -120,6 +131,7 @@ export default function ThreeMapView() {
       // 드래그 시작하면 팝업 제거
       setBuildingInfo(null);
       setVesselInfo(null);
+      setOceanInfo(null);
       const dx = e.clientX - lastX;
       const dy = e.clientY - lastY;
       lastX = e.clientX;
@@ -173,6 +185,7 @@ export default function ThreeMapView() {
 
         setVesselInfo(null);
         setBuildingInfo(null);
+        setOceanInfo(null);
 
         // 선박 체크
         const vessels = layerGroupsRef.current["vessels"];
@@ -212,6 +225,29 @@ export default function ThreeMapView() {
               x: e.clientX,
               y: e.clientY,
             });
+            return;
+          }
+        }
+
+        // 바다 체크 — 지형 클릭 (Y < 0 = 바다)
+        const terrain = layerGroupsRef.current["seabed"] || layerGroupsRef.current["surfaceTerrain"];
+        if (terrain) {
+          const intersects = raycaster.intersectObjects(terrain.children, true);
+          if (intersects.length > 0) {
+            const hit = intersects[0].point;
+            if (hit.y < 0 && currentVecRef.current) {
+              const currents = currentVecRef.current.queryAtPosition(hit.x, hit.z);
+              if (currents) {
+                // 수심 추정 (Y 좌표 기반, DEPTH_SCALE=5)
+                const depth = Math.abs(hit.y) / 5;
+                setOceanInfo({
+                  depth: Math.round(depth * 10) / 10,
+                  currents,
+                  x: e.clientX,
+                  y: e.clientY,
+                });
+              }
+            }
           }
         }
       }
@@ -301,6 +337,8 @@ export default function ThreeMapView() {
       }
       if (dangerAnimateRef.current) dangerAnimateRef.current();
       if (pollutionRef.current) pollutionRef.current.animate();
+      // 나침반 heading 업데이트
+      compassHeadingRef.current = spherical.theta;
       renderer.render(scene, camera);
     };
     animate();
@@ -372,7 +410,7 @@ export default function ThreeMapView() {
 
     setLoadLabel("오염 확산 시스템 초기화...");
     const pollution = new PollutionSystem();
-    await pollution.loadCurrentData();
+    await pollution.loadCurrentData(12);
     scene.add(pollution.group);
     pollutionRef.current = pollution;
     layerGroupsRef.current["pollution"] = pollution.group;
@@ -477,6 +515,12 @@ export default function ThreeMapView() {
           </div>
         </div>
       )}
+
+      {/* 바다 해류 정보 팝업 */}
+      {oceanInfo && <OceanInfoPopup info={oceanInfo} />}
+
+      {/* 나침반 */}
+      {loaded && <Compass />}
 
       {/* 오염원 지정 모드 */}
       {loaded && (
