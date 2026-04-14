@@ -138,18 +138,18 @@ export default function ThreeMapView() {
       lastY = e.clientY;
 
       if (dragButton === 0) {
-        // 좌클릭 → 이동 (Cesium 스타일)
+        // 좌클릭 → 이동
         const panSpeed = spherical.radius * 0.001;
         const right = new THREE.Vector3();
         const up = new THREE.Vector3(0, 1, 0);
         right.crossVectors(camera.getWorldDirection(new THREE.Vector3()), up).normalize();
         const forward = new THREE.Vector3();
         forward.crossVectors(up, right).normalize();
-        target.add(right.multiplyScalar(dx * panSpeed));
+        target.add(right.multiplyScalar(-dx * panSpeed));
         target.add(forward.multiplyScalar(dy * panSpeed));
         updateCamera();
       } else if (dragButton === 2) {
-        // 우클릭 → 회전 (Cesium 스타일)
+        // 우클릭 → 회전
         spherical.theta -= dx * 0.005;
         spherical.phi -= dy * 0.005;
         spherical.phi = Math.max(0.1, Math.min(Math.PI / 2.1, spherical.phi));
