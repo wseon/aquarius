@@ -1,0 +1,8 @@
+node_modules/
+.next/
+.env.local
+public/cesium/
+
+scripts/.tile_cache/
+.DS_Store
+public/cesium/
