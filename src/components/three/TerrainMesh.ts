@@ -3,10 +3,38 @@ import { latLonToLocal } from "./coords";
 
 const MAX_DEPTH = 30;
 const DEPTH_SCALE = 5;
+const ELEVATION_SCALE = 1; // 실제 고도
 const LAND_Y = 0;
 const DEFAULT_SEA_Y = -20;
 const WATER_SURFACE_Y = -21;
 const LAND_COLOR = new THREE.Color(0.88, 0.88, 0.85);
+
+// 고도별 색상 (낮은→높은: 밝은 베이지 → 녹색 → 갈색 → 회색)
+function elevationColor(elev: number): THREE.Color {
+  if (elev < 5) return new THREE.Color(0.88, 0.88, 0.85);   // 평지: 베이지
+  if (elev < 30) {
+    const t = (elev - 5) / 25;
+    return new THREE.Color(0.75 - t * 0.15, 0.80 - t * 0.05, 0.65 - t * 0.15); // 낮은 언덕: 연녹
+  }
+  if (elev < 100) {
+    const t = (elev - 30) / 70;
+    return new THREE.Color(0.55 - t * 0.10, 0.70 - t * 0.15, 0.45 - t * 0.10); // 언덕: 녹색
+  }
+  if (elev < 200) {
+    const t = (elev - 100) / 100;
+    return new THREE.Color(0.45 + t * 0.15, 0.55 - t * 0.10, 0.35 - t * 0.05); // 산: 갈녹
+  }
+  const t = Math.min((elev - 200) / 150, 1);
+  return new THREE.Color(0.60 + t * 0.10, 0.45 - t * 0.05, 0.30 - t * 0.05); // 높은 산: 갈색
+}
+
+function getElevation(
+  lat: number, lon: number,
+  elevationMap: Record<string, number>
+): number {
+  const key = `${lat},${lon}`;
+  return elevationMap[key] ?? 0;
+}
 
 function seaColor(depth: number): THREE.Color {
   const t = Math.min(Math.max(depth / MAX_DEPTH, 0), 1);
@@ -35,7 +63,8 @@ function buildUnifiedMesh(
   waterMap: Record<string, boolean>,
   depthMap: Record<string, number> | null,
   mode: "seabed" | "surface",
-  roadMap?: Record<string, boolean>
+  roadMap?: Record<string, boolean>,
+  elevationMap?: Record<string, number>
 ): THREE.Mesh {
   const positions: number[] = [];
   const colors: number[] = [];
@@ -71,12 +100,15 @@ function buildUnifiedMesh(
         color = SURFACE_COLOR;
       }
     } else if (roadMap?.[coordKey]) {
-      // 도로: 연한 회색
-      y = LAND_Y;
+      // 도로: 연한 회색 + 고도 적용
+      const elev = elevationMap ? getElevation(lats[i], lons[j], elevationMap) : 0;
+      y = Math.max(0, elev * ELEVATION_SCALE);
       color = new THREE.Color(0.72, 0.72, 0.70);
     } else {
-      y = LAND_Y;
-      color = LAND_COLOR;
+      // 육지: 고도 적용 + 고도별 색상
+      const elev = elevationMap ? getElevation(lats[i], lons[j], elevationMap) : 0;
+      y = Math.max(0, elev * ELEVATION_SCALE);
+      color = elevationColor(elev);
     }
 
     const local = latLonToLocal(lats[i], lons[j], y);
@@ -142,17 +174,17 @@ function buildUnifiedMesh(
 export async function createTerrainMesh(): Promise<{ seabedMesh: THREE.Group; surfaceMesh: THREE.Group; animateSurface: () => void }> {
   const res = await fetch("/api/terrain-watermap");
   const data = await res.json();
-  const { lats, lons, waterMap, depthMap, roadMap } = data;
+  const { lats, lons, waterMap, depthMap, roadMap, elevationMap } = data;
 
   // 1. 육지 + 해저지형
   const seabedGroup = new THREE.Group();
   seabedGroup.name = "seabedTerrain";
-  seabedGroup.add(buildUnifiedMesh(lats, lons, waterMap, depthMap, "seabed", roadMap));
+  seabedGroup.add(buildUnifiedMesh(lats, lons, waterMap, depthMap, "seabed", roadMap, elevationMap));
 
   // 2. 육지 + 해수면
   const surfaceGroup = new THREE.Group();
   surfaceGroup.name = "surfaceTerrain";
-  const surfaceMeshObj = buildUnifiedMesh(lats, lons, waterMap, null, "surface", roadMap);
+  const surfaceMeshObj = buildUnifiedMesh(lats, lons, waterMap, null, "surface", roadMap, elevationMap);
   surfaceGroup.add(surfaceMeshObj);
 
   // 파도 애니메이션용 — 바다 정점 인덱스 기록
