@@ -97,8 +97,8 @@ export default function ThreeMapView() {
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
     // 궤도 카메라 상태
-    const target = new THREE.Vector3(-158, 0, 2694);
-    let spherical = new THREE.Spherical(5000, 0.922, -1.144);
+    const target = new THREE.Vector3(-1706, 0, -4194);
+    let spherical = new THREE.Spherical(5126, 0.951, -3.792);
     let isDragging = false;
     let dragButton = -1;
     let lastX = 0, lastY = 0;
@@ -160,6 +160,7 @@ export default function ThreeMapView() {
     canvas.addEventListener("pointerup", (e) => {
       isDragging = false;
       canvas.releasePointerCapture(e.pointerId);
+      console.log(`CAM target(${target.x.toFixed(0)},${target.y.toFixed(0)},${target.z.toFixed(0)}) radius:${spherical.radius.toFixed(0)} theta:${spherical.theta.toFixed(3)} phi:${spherical.phi.toFixed(3)}`);
 
       // 클릭 판별 (이동 5px 미만이면 클릭)
       const ddx = e.clientX - pointerDownPos.x;
@@ -291,8 +292,9 @@ export default function ThreeMapView() {
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
-      spherical.radius = Math.max(200, Math.min(5000, spherical.radius * zoomFactor));
+      spherical.radius = Math.max(50, Math.min(50000, spherical.radius * zoomFactor));
       updateCamera();
+      console.log(`CAM target(${target.x.toFixed(0)},${target.y.toFixed(0)},${target.z.toFixed(0)}) radius:${spherical.radius.toFixed(0)} theta:${spherical.theta.toFixed(3)} phi:${spherical.phi.toFixed(3)}`);
     }, { passive: false });
 
 

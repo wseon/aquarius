@@ -12,17 +12,17 @@ interface ZoneData {
 const ZONES: ZoneData[] = [
   {
     name: "얕은 수심 주의",
-    coords: [[126.590, 37.488], [126.600, 37.488], [126.600, 37.493], [126.590, 37.493]],
+    coords: [[128.795, 35.045], [128.810, 35.045], [128.810, 35.050], [128.795, 35.050]],
     color: 0xef4444,
   },
   {
     name: "조류 위험",
-    coords: [[126.595, 37.498], [126.605, 37.498], [126.605, 37.503], [126.595, 37.503]],
+    coords: [[128.780, 35.055], [128.795, 35.055], [128.795, 35.060], [128.780, 35.060]],
     color: 0xf97316,
   },
   {
     name: "통항 혼잡",
-    coords: [[126.588, 37.504], [126.598, 37.504], [126.598, 37.509], [126.588, 37.509]],
+    coords: [[128.800, 35.068], [128.815, 35.068], [128.815, 35.073], [128.800, 35.073]],
     color: 0xeab308,
   },
 ];
@@ -30,7 +30,6 @@ const ZONES: ZoneData[] = [
 function createWarningIcon(color: number): THREE.Group {
   const icon = new THREE.Group();
 
-  // 삼각형 배경
   const triShape = new THREE.Shape();
   triShape.moveTo(0, 12);
   triShape.lineTo(-8, -4);
@@ -42,7 +41,6 @@ function createWarningIcon(color: number): THREE.Group {
   const tri = new THREE.Mesh(triGeo, triMat);
   icon.add(tri);
 
-  // ! 마크 (세로 막대 + 점)
   const barGeo = new THREE.PlaneGeometry(2, 7);
   const barMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
   const bar = new THREE.Mesh(barGeo, barMat);
@@ -71,7 +69,6 @@ export function createDangerZones(): {
   const zoneMeshes: THREE.Mesh[] = [];
 
   for (const zone of ZONES) {
-    // 영역 폴리곤
     const shape = new THREE.Shape();
     const pts = zone.coords.map(([lon, lat]) => latLonToLocal(lat, lon, ZONE_Y));
     shape.moveTo(pts[0].x, -pts[0].z);
@@ -93,7 +90,6 @@ export function createDangerZones(): {
     group.add(mesh);
     zoneMeshes.push(mesh);
 
-    // 테두리
     const edgePoints = [...pts, pts[0]];
     const lineGeo = new THREE.BufferGeometry().setFromPoints(edgePoints);
     const lineMat = new THREE.LineBasicMaterial({
@@ -103,18 +99,15 @@ export function createDangerZones(): {
     });
     group.add(new THREE.Line(lineGeo, lineMat));
 
-    // 중심점에 경고 아이콘
     const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
     const cz = pts.reduce((s, p) => s + p.z, 0) / pts.length;
 
     const icon = createWarningIcon(zone.color);
     icon.position.set(cx, ZONE_Y + 40, cz);
     icon.scale.set(2.5, 2.5, 2.5);
-    // 항상 카메라를 향하도록 빌보드 → sprite 대신 그룹으로 animate에서 처리
     group.add(icon);
     icons.push(icon);
 
-    // 라벨
     const canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = 64;
@@ -132,7 +125,6 @@ export function createDangerZones(): {
     group.add(sprite);
   }
 
-  // 각 구역의 로컬 좌표 바운딩 박스
   const zoneBounds: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [];
   for (const zone of ZONES) {
     const pts = zone.coords.map(([lon, lat]) => latLonToLocal(lat, lon, 0));
@@ -163,13 +155,11 @@ export function createDangerZones(): {
   const animate = () => {
     time += 0.03;
 
-    // 아이콘 위아래 바운스
     for (let i = 0; i < icons.length; i++) {
       const baseY = ZONE_Y + 40;
       icons[i].position.y = baseY + Math.sin(time * 2 + i) * 8;
     }
 
-    // 영역 깜빡임 — 선박 진입 시 빠르게
     const blinkSpeed = alertActive ? 8 : 1.5;
     const baseOpacity = alertActive ? 0.25 : 0.15;
     const blinkRange = alertActive ? 0.2 : 0.1;
