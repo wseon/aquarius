@@ -72,6 +72,9 @@ export default function RoiSelector({ onRoiSelected, initialCenter }: Props) {
       const coord = pickLatLon(click.position);
       if (!coord) return;
 
+      // idle 모드에서도 클릭 좌표 콘솔 출력
+      console.log(`CLICK: ${coord.lat.toFixed(6)}, ${coord.lon.toFixed(6)}`);
+
       if (modeRef.current === "roi") {
         if (!roiDragStart) {
           roiDragStart = coord;

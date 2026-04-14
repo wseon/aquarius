@@ -108,8 +108,21 @@ function buildUnifiedMesh(
 
   const mesh = new THREE.Mesh(geometry, material);
 
+  // 해저지형 와이어프레임 격자선
+  if (mode === "seabed") {
+    const wireMat = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.15,
+    });
+    const wireMesh = new THREE.Mesh(geometry, wireMat);
+    wireMesh.position.y = 0.1; // 약간 위에 겹침 방지
+    mesh.add(wireMesh);
+  }
+
   // 육지 경계 엣지 라인 (각도 15도 이상 꺾이는 곳만)
-  const edgeGeo = new THREE.EdgesGeometry(geometry, 15);
+  const edgeGeo = new THREE.EdgesGeometry(geometry, 7);
   const edgeMat = new THREE.LineBasicMaterial({
     color: 0x444444,
     transparent: true,
