@@ -34,7 +34,8 @@ function buildUnifiedMesh(
   lats: number[], lons: number[],
   waterMap: Record<string, boolean>,
   depthMap: Record<string, number> | null,
-  mode: "seabed" | "surface"
+  mode: "seabed" | "surface",
+  roadMap?: Record<string, boolean>
 ): THREE.Mesh {
   const positions: number[] = [];
   const colors: number[] = [];
@@ -69,6 +70,10 @@ function buildUnifiedMesh(
         y = WATER_SURFACE_Y;
         color = SURFACE_COLOR;
       }
+    } else if (roadMap?.[coordKey]) {
+      // 도로: 연한 회색
+      y = LAND_Y;
+      color = new THREE.Color(0.72, 0.72, 0.70);
     } else {
       y = LAND_Y;
       color = LAND_COLOR;
@@ -137,17 +142,17 @@ function buildUnifiedMesh(
 export async function createTerrainMesh(): Promise<{ seabedMesh: THREE.Group; surfaceMesh: THREE.Group; animateSurface: () => void }> {
   const res = await fetch("/api/terrain-watermap");
   const data = await res.json();
-  const { lats, lons, waterMap, depthMap } = data;
+  const { lats, lons, waterMap, depthMap, roadMap } = data;
 
   // 1. 육지 + 해저지형
   const seabedGroup = new THREE.Group();
   seabedGroup.name = "seabedTerrain";
-  seabedGroup.add(buildUnifiedMesh(lats, lons, waterMap, depthMap, "seabed"));
+  seabedGroup.add(buildUnifiedMesh(lats, lons, waterMap, depthMap, "seabed", roadMap));
 
   // 2. 육지 + 해수면
   const surfaceGroup = new THREE.Group();
   surfaceGroup.name = "surfaceTerrain";
-  const surfaceMeshObj = buildUnifiedMesh(lats, lons, waterMap, null, "surface");
+  const surfaceMeshObj = buildUnifiedMesh(lats, lons, waterMap, null, "surface", roadMap);
   surfaceGroup.add(surfaceMeshObj);
 
   // 파도 애니메이션용 — 바다 정점 인덱스 기록
