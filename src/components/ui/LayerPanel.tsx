@@ -24,7 +24,7 @@ export default function LayerPanel() {
     setRefreshMsg("API 호출 중...");
 
     try {
-      const res = await fetch("/api/refresh-depth", { method: "POST" });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/refresh-depth`, { method: "POST" });
       const result = await res.json();
 
       if (result.success) {

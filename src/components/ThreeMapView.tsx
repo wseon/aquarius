@@ -362,7 +362,7 @@ export default function ThreeMapView() {
   async function loadAll(scene: THREE.Scene) {
     setLoadLabel("지형 데이터 로딩...");
     setLoadProgress(5);
-    const wmRes = await fetch("/api/terrain-watermap");
+    const wmRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/terrain-watermap`);
     const wmData = await wmRes.json();
 
     setLoadLabel("지형 메시 생성...");
