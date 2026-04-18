@@ -97,8 +97,8 @@ export default function ThreeMapView() {
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
     // 궤도 카메라 상태 (초기값)
-    const INIT_TARGET = new THREE.Vector3(-158, 0, 2694);
-    const INIT_SPHERICAL = { radius: 5000, phi: 0.922, theta: -1.144 };
+    const INIT_TARGET = new THREE.Vector3(1363, 0, 4729);
+    const INIT_SPHERICAL = { radius: 7695, phi: 0.793, theta: -0.741 };
     const target = INIT_TARGET.clone();
     let spherical = new THREE.Spherical(INIT_SPHERICAL.radius, INIT_SPHERICAL.phi, INIT_SPHERICAL.theta);
 
