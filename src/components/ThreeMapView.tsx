@@ -79,7 +79,7 @@ export default function ThreeMapView() {
 
     // Scene
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x1a2030, 5000, 12000);
+    // scene.fog = new THREE.Fog(0x1a2030, 5000, 12000);
     sceneRef.current = scene;
 
     // Camera
@@ -87,7 +87,7 @@ export default function ThreeMapView() {
       45,
       window.innerWidth / window.innerHeight,
       1,
-      20000
+      100000
     );
     camera.position.set(0, 2500, 2000); // 초기값, 아래에서 덮어씀
     cameraRef.current = camera;
@@ -97,8 +97,8 @@ export default function ThreeMapView() {
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
     // 궤도 카메라 상태
-    const target = new THREE.Vector3(-1706, 0, -4194);
-    let spherical = new THREE.Spherical(5126, 0.951, -3.792);
+    const target = new THREE.Vector3(-1524, 0, -6815);
+    let spherical = new THREE.Spherical(9740, 0.948, -3.728);
     let isDragging = false;
     let dragButton = -1;
     let lastX = 0, lastY = 0;
@@ -299,12 +299,12 @@ export default function ThreeMapView() {
 
 
     // Lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
     dirLight.position.set(500, 1000, 500);
     dirLight.castShadow = true;
     scene.add(dirLight);
-    const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+    const fillLight = new THREE.DirectionalLight(0x4488ff, 0.5);
     fillLight.position.set(-300, 500, -300);
     scene.add(fillLight);
 
