@@ -40,7 +40,7 @@ export class CurrentVectorSystem {
   }
 
   async load() {
-    const res = await fetch("/api/current-vectors");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/current-vectors`);
     const data = await res.json();
     this.allData = data.hours;
     this.buildParticles(this.currentHour);

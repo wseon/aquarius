@@ -5,13 +5,13 @@ export async function createBuildings(): Promise<THREE.Group> {
   const group = new THREE.Group();
   group.name = "buildings";
 
-  const res = await fetch("/api/buildings");
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/buildings`);
   const geojson = await res.json();
 
   // 건물별 색상 로드
   let colorMap: Record<string, number[]> = {};
   try {
-    const colorRes = await fetch("/api/building-colors");
+    const colorRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/building-colors`);
     colorMap = await colorRes.json();
   } catch {}
 

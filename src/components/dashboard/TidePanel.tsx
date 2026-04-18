@@ -16,7 +16,7 @@ export default function TidePanel() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/tide");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/tide`);
         const data = await res.json();
         setRecords(data.records || []);
       } catch {

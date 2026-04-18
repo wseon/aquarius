@@ -122,7 +122,7 @@ function buildUnifiedMesh(
 }
 
 export async function createTerrainMesh(): Promise<{ seabedMesh: THREE.Group; surfaceMesh: THREE.Group; animateSurface: () => void }> {
-  const res = await fetch("/api/terrain-watermap");
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/terrain-watermap`);
   const data = await res.json();
   const { lats, lons, waterMap, depthMap } = data;
 

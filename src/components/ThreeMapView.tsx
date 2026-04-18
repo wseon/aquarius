@@ -13,7 +13,7 @@ import { createChannels } from "./three/Channels";
 import { createDangerZones } from "./three/DangerZones";
 import { PollutionSystem } from "./three/Pollution";
 import OceanInfoPopup from "./ui/OceanInfoPopup";
-import Compass, { compassHeadingRef } from "./ui/Compass";
+import Compass, { compassCameraRef, compassResetRef } from "./ui/Compass";
 import { createWaterSurface } from "./three/WaterSurface";
 
 export default function ThreeMapView() {
@@ -96,9 +96,17 @@ export default function ThreeMapView() {
     const canvas = renderer.domElement;
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 궤도 카메라 상태
-    const target = new THREE.Vector3(-158, 0, 2694);
-    let spherical = new THREE.Spherical(5000, 0.922, -1.144);
+    // 궤도 카메라 상태 (초기값)
+    const INIT_TARGET = new THREE.Vector3(-158, 0, 2694);
+    const INIT_SPHERICAL = { radius: 5000, phi: 0.922, theta: -1.144 };
+    const target = INIT_TARGET.clone();
+    let spherical = new THREE.Spherical(INIT_SPHERICAL.radius, INIT_SPHERICAL.phi, INIT_SPHERICAL.theta);
+
+    compassResetRef.current = () => {
+      target.copy(INIT_TARGET);
+      spherical.set(INIT_SPHERICAL.radius, INIT_SPHERICAL.phi, INIT_SPHERICAL.theta);
+      updateCamera();
+    };
     let isDragging = false;
     let dragButton = -1;
     let lastX = 0, lastY = 0;
@@ -338,7 +346,7 @@ export default function ThreeMapView() {
       if (dangerAnimateRef.current) dangerAnimateRef.current();
       if (pollutionRef.current) pollutionRef.current.animate();
       // 나침반 heading 업데이트
-      compassHeadingRef.current = spherical.theta;
+      compassCameraRef.current = camera;
       renderer.render(scene, camera);
     };
     animate();
@@ -360,7 +368,7 @@ export default function ThreeMapView() {
   async function loadAll(scene: THREE.Scene) {
     setLoadLabel("지형 데이터 로딩...");
     setLoadProgress(5);
-    const wmRes = await fetch("/api/terrain-watermap");
+    const wmRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/terrain-watermap`);
     const wmData = await wmRes.json();
 
     setLoadLabel("지형 메시 생성...");
