@@ -136,7 +136,7 @@ export default function CesiumViewerComponent() {
   // 북항 주변 OSM 건물 3D 렌더링
   async function loadBuildings3D(viewer: Cesium.Viewer) {
     try {
-      const res = await fetch("/api/buildings");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/buildings`);
       const geojson = await res.json();
       if (viewer.isDestroyed()) return;
 
@@ -291,7 +291,7 @@ export default function CesiumViewerComponent() {
   async function loadBathymetry(viewer: Cesium.Viewer) {
     setStatus("수심 데이터 로딩 중...");
     try {
-      const res = await fetch("/api/bathymetry");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/bathymetry`);
       const data = await res.json();
       const points: DepthPoint[] = data.points;
       setDepthPoints(points);

@@ -14,7 +14,7 @@ export default function InfoPanel() {
   const timeHour = useLayerStore((s) => s.timeHour);
 
   useEffect(() => {
-    fetch("/api/tide")
+    fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/tide`)
       .then((r) => r.json())
       .then((d) => setTideData(d.records || []))
       .catch(() => {});

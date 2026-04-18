@@ -40,7 +40,7 @@ export class PollutionSystem {
   // 해류 데이터 로드
   async loadCurrentData(hour: number = 12) {
     try {
-      const res = await fetch("/api/current-vectors");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/current-vectors`);
       const data = await res.json();
       const vectors = data.hours?.[String(hour)] || data.hours?.["12"] || [];
       this.currentVectors = vectors

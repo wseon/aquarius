@@ -140,7 +140,7 @@ export async function createVessels(): Promise<{
   const group = new THREE.Group();
   group.name = "vessels";
 
-  const res = await fetch("/api/vessels");
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/vessels`);
   const data = await res.json();
   const vessels: VesselData[] = data.vessels;
 

@@ -5,13 +5,13 @@ export async function createBuildings(): Promise<THREE.Group> {
   const group = new THREE.Group();
   group.name = "buildings";
 
-  const res = await fetch("/api/buildings");
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/buildings`);
   const geojson = await res.json();
 
   // 고도 데이터 로드
   let elevationMap: Record<string, number> = {};
   try {
-    const terrainRes = await fetch("/api/terrain-watermap");
+    const terrainRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/terrain-watermap`);
     const terrainData = await terrainRes.json();
     elevationMap = terrainData.elevationMap || {};
   } catch {}
@@ -49,7 +49,7 @@ export async function createBuildings(): Promise<THREE.Group> {
   // 건물별 색상 로드
   let colorMap: Record<string, number[]> = {};
   try {
-    const colorRes = await fetch("/api/building-colors");
+    const colorRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/building-colors`);
     colorMap = await colorRes.json();
   } catch {}
 
