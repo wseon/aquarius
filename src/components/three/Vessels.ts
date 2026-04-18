@@ -152,8 +152,8 @@ export async function createVessels(): Promise<{
     const local = latLonToLocal(v.lat, v.lon, VESSEL_Y);
     const ship = createShipGeometry(v.length * 1.2, v.type);
 
-    // 선박 크기 1/3 축소
-    ship.scale.set(1/3, 1/3, 1/3);
+    // 선박 크기 원래 사이즈
+    ship.scale.set(1, 1, 1);
     // heading 적용 (0=북, 시계방향)
     ship.rotation.y = -((v.heading * Math.PI) / 180);
     ship.position.copy(local);
