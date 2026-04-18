@@ -158,7 +158,7 @@ export class CurrentVectorSystem {
 
       const material = new THREE.PointsMaterial({
         color: color,
-        size: layer === "surface" ? 4 : 3,
+        size: layer === "surface" ? 5 : 4,
         transparent: true,
         opacity: layer === "surface" ? 0.9 : 0.6,
         sizeAttenuation: true,
@@ -176,7 +176,7 @@ export class CurrentVectorSystem {
           const rad = (v.direction * Math.PI) / 180;
 
           // 화살표 선
-          const len = v.speed * 30;
+          const len = v.speed * 80;
           const endX = local.x + Math.sin(rad) * len;
           const endZ = local.z - Math.cos(rad) * len;
 
@@ -223,7 +223,7 @@ export class CurrentVectorSystem {
         const ox = data.origins[i * 3];
         const oz = data.origins[i * 3 + 2];
         const dist = Math.sqrt((x - ox) ** 2 + (z - oz) ** 2);
-        if (dist > 80) {
+        if (dist > 120) {
           x = ox + (Math.random() - 0.5) * 20;
           z = oz + (Math.random() - 0.5) * 20;
         }

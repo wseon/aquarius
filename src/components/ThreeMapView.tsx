@@ -79,7 +79,7 @@ export default function ThreeMapView() {
 
     // Scene
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x1a2030, 5000, 12000);
+    // scene.fog = new THREE.Fog(0x1a2030, 5000, 12000);
     sceneRef.current = scene;
 
     // Camera
@@ -87,7 +87,7 @@ export default function ThreeMapView() {
       45,
       window.innerWidth / window.innerHeight,
       1,
-      20000
+      100000
     );
     camera.position.set(0, 2500, 2000); // 초기값, 아래에서 덮어씀
     cameraRef.current = camera;
@@ -153,7 +153,7 @@ export default function ThreeMapView() {
         right.crossVectors(camera.getWorldDirection(new THREE.Vector3()), up).normalize();
         const forward = new THREE.Vector3();
         forward.crossVectors(up, right).normalize();
-        target.add(right.multiplyScalar(dx * panSpeed));
+        target.add(right.multiplyScalar(-dx * panSpeed));
         target.add(forward.multiplyScalar(dy * panSpeed));
         updateCamera();
       } else if (dragButton === 2) {
@@ -168,6 +168,7 @@ export default function ThreeMapView() {
     canvas.addEventListener("pointerup", (e) => {
       isDragging = false;
       canvas.releasePointerCapture(e.pointerId);
+      console.log(`CAM target(${target.x.toFixed(0)},${target.y.toFixed(0)},${target.z.toFixed(0)}) radius:${spherical.radius.toFixed(0)} theta:${spherical.theta.toFixed(3)} phi:${spherical.phi.toFixed(3)}`);
 
       // 클릭 판별 (이동 5px 미만이면 클릭)
       const ddx = e.clientX - pointerDownPos.x;
@@ -299,18 +300,19 @@ export default function ThreeMapView() {
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
-      spherical.radius = Math.max(200, Math.min(5000, spherical.radius * zoomFactor));
+      spherical.radius = Math.max(50, Math.min(50000, spherical.radius * zoomFactor));
       updateCamera();
+      console.log(`CAM target(${target.x.toFixed(0)},${target.y.toFixed(0)},${target.z.toFixed(0)}) radius:${spherical.radius.toFixed(0)} theta:${spherical.theta.toFixed(3)} phi:${spherical.phi.toFixed(3)}`);
     }, { passive: false });
 
 
     // Lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
     dirLight.position.set(500, 1000, 500);
     dirLight.castShadow = true;
     scene.add(dirLight);
-    const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+    const fillLight = new THREE.DirectionalLight(0x4488ff, 0.5);
     fillLight.position.set(-300, 500, -300);
     scene.add(fillLight);
 

@@ -8,6 +8,44 @@ export async function createBuildings(): Promise<THREE.Group> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/buildings`);
   const geojson = await res.json();
 
+  // 고도 데이터 로드
+  let elevationMap: Record<string, number> = {};
+  try {
+    const terrainRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/terrain-watermap`);
+    const terrainData = await terrainRes.json();
+    elevationMap = terrainData.elevationMap || {};
+  } catch {}
+
+  // 고도 빠른 조회용 인덱스
+  const elevLats = new Set<number>();
+  const elevLons = new Set<number>();
+  for (const k of Object.keys(elevationMap)) {
+    const [la, lo] = k.split(",").map(Number);
+    elevLats.add(la);
+    elevLons.add(lo);
+  }
+  const sortedLats = [...elevLats].sort((a, b) => a - b);
+  const sortedLons = [...elevLons].sort((a, b) => a - b);
+
+  function getElevationAt(lat: number, lon: number): number {
+    // 이진 검색으로 가장 가까운 그리드 포인트 찾기
+    let li = 0, hi = sortedLats.length - 1;
+    while (li < hi) {
+      const mid = (li + hi) >> 1;
+      if (sortedLats[mid] < lat) li = mid + 1; else hi = mid;
+    }
+    const nearLat = sortedLats[Math.min(li, sortedLats.length - 1)];
+
+    li = 0; hi = sortedLons.length - 1;
+    while (li < hi) {
+      const mid = (li + hi) >> 1;
+      if (sortedLons[mid] < lon) li = mid + 1; else hi = mid;
+    }
+    const nearLon = sortedLons[Math.min(li, sortedLons.length - 1)];
+
+    return elevationMap[`${nearLat},${nearLon}`] ?? 0;
+  }
+
   // 건물별 색상 로드
   let colorMap: Record<string, number[]> = {};
   try {
@@ -72,7 +110,9 @@ export async function createBuildings(): Promise<THREE.Group> {
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         const mesh = new THREE.Mesh(geometry, material);
         mesh.rotation.x = -Math.PI / 2;
-        mesh.position.y = 0;
+        // 건물 중심 고도 계산
+        const buildingElev = getElevationAt(avgLat, avgLon);
+        mesh.position.y = buildingElev;
         // 건물 정보 저장
         mesh.userData = {
           buildingType: feature.properties.building || "unknown",
