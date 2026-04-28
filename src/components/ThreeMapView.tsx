@@ -13,7 +13,7 @@ import { createChannels } from "./three/Channels";
 import { createDangerZones } from "./three/DangerZones";
 import { PollutionSystem } from "./three/Pollution";
 import OceanInfoPopup from "./ui/OceanInfoPopup";
-import Compass, { compassHeadingRef } from "./ui/Compass";
+import Compass, { compassCameraRef, compassResetRef } from "./ui/Compass";
 import { createWaterSurface } from "./three/WaterSurface";
 
 export default function ThreeMapView() {
@@ -61,6 +61,17 @@ export default function ThreeMapView() {
   useEffect(() => { pollutionModeRef.current = pollutionMode; }, [pollutionMode]);
   const totalPollution = marineCount + airCount;
   const timeHour = useLayerStore((s) => s.timeHour);
+  const tideOffsetsRef = useRef<Record<number, number>>({});
+  const setTideOffsetRef = useRef<((offset: number) => void) | null>(null);
+
+  useEffect(() => {
+    if (setTideOffsetRef.current && timeHour in tideOffsetsRef.current) {
+      setTideOffsetRef.current(tideOffsetsRef.current[timeHour]);
+    }
+    if (currentVecRef.current) {
+      currentVecRef.current.setHour(timeHour);
+    }
+  }, [timeHour]);
 
   // 낮/밤 모드 — 비활성 (비교용)
 
@@ -96,9 +107,18 @@ export default function ThreeMapView() {
     const canvas = renderer.domElement;
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 궤도 카메라 상태
-    const target = new THREE.Vector3(-1524, 0, -6815);
-    let spherical = new THREE.Spherical(9740, 0.948, -3.728);
+    // 궤도 카메라 상태 (초기값)
+    const INIT_TARGET = new THREE.Vector3(-1524, 0, -6815);
+    const INIT_SPHERICAL = { radius: 9740, phi: 0.948, theta: -3.728 };
+    const target = INIT_TARGET.clone();
+    let spherical = new THREE.Spherical(INIT_SPHERICAL.radius, INIT_SPHERICAL.phi, INIT_SPHERICAL.theta);
+
+    // 나침반 리셋 함수 등록
+    compassResetRef.current = () => {
+      target.copy(INIT_TARGET);
+      spherical.set(INIT_SPHERICAL.radius, INIT_SPHERICAL.phi, INIT_SPHERICAL.theta);
+      updateCamera();
+    };
     let isDragging = false;
     let dragButton = -1;
     let lastX = 0, lastY = 0;
@@ -340,7 +360,7 @@ export default function ThreeMapView() {
       if (dangerAnimateRef.current) dangerAnimateRef.current();
       if (pollutionRef.current) pollutionRef.current.animate();
       // 나침반 heading 업데이트
-      compassHeadingRef.current = spherical.theta;
+      compassCameraRef.current = camera;
       renderer.render(scene, camera);
     };
     animate();
@@ -367,13 +387,28 @@ export default function ThreeMapView() {
 
     setLoadLabel("지형 메시 생성...");
     setLoadProgress(15);
-    const { seabedMesh, surfaceMesh, animateSurface } = await createTerrainMesh();
+    const { seabedMesh, surfaceMesh, animateSurface, setTideOffset } = await createTerrainMesh();
     scene.add(seabedMesh);
     scene.add(surfaceMesh);
     layerGroupsRef.current["seabed"] = seabedMesh;
     layerGroupsRef.current["surfaceTerrain"] = surfaceMesh;
     waterAnimateRef.current = animateSurface;
+    setTideOffsetRef.current = setTideOffset;
     surfaceMesh.visible = false;
+
+    try {
+      const tideRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/tide`);
+      const tideData = await tideRes.json();
+      const records = tideData.records || [];
+      const levels = records.map((r: any) => r.measured || r.predicted || 0);
+      const msl = levels.length > 0 ? levels.reduce((a: number, b: number) => a + b, 0) / levels.length : 0;
+      for (const r of records) {
+        const hour = parseInt(r.datetime.split(" ")[1].split(":")[0]);
+        const level = r.measured || r.predicted || msl;
+        tideOffsetsRef.current[hour] = (level - msl) / 100;
+      }
+      setTideOffset(tideOffsetsRef.current[12] || 0);
+    } catch {}
     setLoadProgress(35);
 
     setLoadLabel("건물 로딩...");
