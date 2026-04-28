@@ -61,6 +61,18 @@ export default function ThreeMapView() {
   useEffect(() => { pollutionModeRef.current = pollutionMode; }, [pollutionMode]);
   const totalPollution = marineCount + airCount;
   const timeHour = useLayerStore((s) => s.timeHour);
+  const tideOffsetsRef = useRef<Record<number, number>>({});
+  const setTideOffsetRef = useRef<((offset: number) => void) | null>(null);
+
+  // 타임슬라이더 변경 시 조위 색상 + 해류 벡터 업데이트
+  useEffect(() => {
+    if (setTideOffsetRef.current && timeHour in tideOffsetsRef.current) {
+      setTideOffsetRef.current(tideOffsetsRef.current[timeHour]);
+    }
+    if (currentVecRef.current) {
+      currentVecRef.current.setHour(timeHour);
+    }
+  }, [timeHour]);
 
   // 낮/밤 모드 — 비활성 (비교용)
 
@@ -375,13 +387,29 @@ export default function ThreeMapView() {
 
     setLoadLabel("지형 메시 생성...");
     setLoadProgress(15);
-    const { seabedMesh, surfaceMesh, animateSurface } = await createTerrainMesh();
+    const { seabedMesh, surfaceMesh, animateSurface, setTideOffset } = await createTerrainMesh();
     scene.add(seabedMesh);
     scene.add(surfaceMesh);
     layerGroupsRef.current["seabed"] = seabedMesh;
     layerGroupsRef.current["surfaceTerrain"] = surfaceMesh;
     waterAnimateRef.current = animateSurface;
+    setTideOffsetRef.current = setTideOffset;
     surfaceMesh.visible = false;
+
+    // 조위 데이터 → 시간별 오프셋(m)
+    try {
+      const tideRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/tide`);
+      const tideData = await tideRes.json();
+      const records = tideData.records || [];
+      const levels = records.map((r: any) => r.measured || r.predicted || 0);
+      const msl = levels.length > 0 ? levels.reduce((a: number, b: number) => a + b, 0) / levels.length : 0;
+      for (const r of records) {
+        const hour = parseInt(r.datetime.split(" ")[1].split(":")[0]);
+        const level = r.measured || r.predicted || msl;
+        tideOffsetsRef.current[hour] = (level - msl) / 100; // cm → m
+      }
+      setTideOffset(tideOffsetsRef.current[12] || 0);
+    } catch {}
     setLoadProgress(35);
 
     setLoadLabel("건물 로딩...");
