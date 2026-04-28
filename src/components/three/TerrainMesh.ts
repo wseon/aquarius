@@ -171,7 +171,12 @@ function buildUnifiedMesh(
   return mesh;
 }
 
-export async function createTerrainMesh(): Promise<{ seabedMesh: THREE.Group; surfaceMesh: THREE.Group; animateSurface: () => void }> {
+export async function createTerrainMesh(): Promise<{
+  seabedMesh: THREE.Group;
+  surfaceMesh: THREE.Group;
+  animateSurface: () => void;
+  setTideOffset: (offsetM: number) => void;
+}> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/terrain-watermap`);
   const data = await res.json();
   const { lats, lons, waterMap, depthMap, roadMap, elevationMap } = data;
@@ -179,7 +184,23 @@ export async function createTerrainMesh(): Promise<{ seabedMesh: THREE.Group; su
   // 1. 육지 + 해저지형
   const seabedGroup = new THREE.Group();
   seabedGroup.name = "seabedTerrain";
-  seabedGroup.add(buildUnifiedMesh(lats, lons, waterMap, depthMap, "seabed", roadMap, elevationMap));
+  const seabedMeshObj = buildUnifiedMesh(lats, lons, waterMap, depthMap, "seabed", roadMap, elevationMap);
+  seabedGroup.add(seabedMeshObj);
+
+  // seabed water vertex의 원본 수심 기록 (조위 색상 변동용)
+  const seabedGeo = seabedMeshObj.geometry;
+  const seabedColAttr = seabedGeo.getAttribute("color") as THREE.BufferAttribute;
+  const seabedPosAttr = seabedGeo.getAttribute("position") as THREE.BufferAttribute;
+  const seabedVertCount = seabedColAttr.count;
+  const seabedIsWater = new Uint8Array(seabedVertCount);
+  const seabedOrigDepth = new Float32Array(seabedVertCount);
+  for (let i = 0; i < seabedVertCount; i++) {
+    const y = seabedPosAttr.getY(i);
+    if (y < -3) {
+      seabedIsWater[i] = 1;
+      seabedOrigDepth[i] = -y / DEPTH_SCALE; // Y → 원본 수심(m)
+    }
+  }
 
   // 2. 육지 + 해수면
   const surfaceGroup = new THREE.Group();
@@ -235,6 +256,18 @@ export async function createTerrainMesh(): Promise<{ seabedMesh: THREE.Group; su
     colAttr.needsUpdate = true;
   };
 
-  console.log(`지형 메시: 통합(seabed) + 통합(surface+파도) 생성 완료`);
-  return { seabedMesh: seabedGroup, surfaceMesh: surfaceGroup, animateSurface };
+  // 조위 변동 → 수심 색상만 업데이트 (지형 위치 변화 없음)
+  const setTideOffset = (tideOffsetM: number) => {
+    for (let i = 0; i < seabedVertCount; i++) {
+      if (!seabedIsWater[i]) continue;
+      // 현재 수심 = 원본 수심 + 조위 오프셋 (만조 → 수심 깊어짐 → 색 진해짐)
+      const adjustedDepth = Math.max(0, seabedOrigDepth[i] + tideOffsetM);
+      const color = seaColor(adjustedDepth);
+      seabedColAttr.setXYZ(i, color.r, color.g, color.b);
+    }
+    seabedColAttr.needsUpdate = true;
+  };
+
+  console.log(`지형 메시: 통합(seabed) + 통합(surface+파도) + 조위색상 생성 완료`);
+  return { seabedMesh: seabedGroup, surfaceMesh: surfaceGroup, animateSurface, setTideOffset };
 }
