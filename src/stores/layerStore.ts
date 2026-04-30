@@ -12,6 +12,7 @@ export interface LayerState {
   waterTemp: boolean;
   salinity: boolean;
   pollution: boolean;
+  pollutionZone: boolean;
   grid: boolean;
   seabed: boolean;
 
@@ -42,6 +43,7 @@ export const useLayerStore = create<LayerState>((set) => ({
   waterTemp: false,
   salinity: false,
   pollution: false,
+  pollutionZone: false,
   grid: true,
   seabed: true,
 
