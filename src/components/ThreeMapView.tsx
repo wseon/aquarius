@@ -12,6 +12,7 @@ import { createVessels } from "./three/Vessels";
 import { createChannels } from "./three/Channels";
 import { createDangerZones } from "./three/DangerZones";
 import { PollutionSystem } from "./three/Pollution";
+import { createPollutionZones } from "./three/PollutionZone";
 import OceanInfoPopup from "./ui/OceanInfoPopup";
 import Compass, { compassCameraRef, compassResetRef } from "./ui/Compass";
 import { createWaterSurface } from "./three/WaterSurface";
@@ -33,6 +34,7 @@ export default function ThreeMapView() {
   const dangerAnimateRef = useRef<(() => void) | null>(null);
   const dangerCheckRef = useRef<{ check: (x: number, z: number) => boolean; setAlert: (a: boolean) => void } | null>(null);
   const pollutionRef = useRef<PollutionSystem | null>(null);
+  const pollutionZoneAnimateRef = useRef<(() => void) | null>(null);
   const [pollutionMode, setPollutionMode] = useState<"off" | "marine" | "air">("off");
   const pollutionModeRef = useRef<"off" | "marine" | "air">("off");
   const [marineCount, setMarineCount] = useState(0);
@@ -358,6 +360,7 @@ export default function ThreeMapView() {
       }
       if (dangerAnimateRef.current) dangerAnimateRef.current();
       if (pollutionRef.current) pollutionRef.current.animate();
+      if (pollutionZoneAnimateRef.current) pollutionZoneAnimateRef.current();
       // 나침반 heading 업데이트
       compassCameraRef.current = camera;
       renderer.render(scene, camera);
@@ -452,6 +455,14 @@ export default function ThreeMapView() {
     layerGroupsRef.current["pollution"] = pollution.group;
     pollution.group.visible = false;
 
+
+    // 오염구역 레이어
+    const { group: pzGroup, animate: pzAnimate } = createPollutionZones(buildings);
+    scene.add(pzGroup);
+    layerGroupsRef.current["pollutionZone"] = pzGroup;
+    pollutionZoneAnimateRef.current = pzAnimate;
+    pzGroup.visible = false;
+
     setLoadProgress(100);
     setLoadLabel("완료");
     setTimeout(() => setLoaded(true), 500);
@@ -459,7 +470,7 @@ export default function ThreeMapView() {
 
   // 레이어 토글
   useEffect(() => {
-    const keys = ["facilities", "grid", "currentFlow", "vessels", "channels", "dangerZones", "pollution"];
+    const keys = ["facilities", "grid", "currentFlow", "vessels", "channels", "dangerZones", "pollution", "pollutionZone"];
     for (const key of keys) {
       const obj = layerGroupsRef.current[key];
       if (obj) {
@@ -477,7 +488,7 @@ export default function ThreeMapView() {
     if (currentVecRef.current) {
       currentVecRef.current.setSeabedVisible(layers.seabed);
     }
-  }, [layers.facilities, layers.grid, layers.seabed, layers.currentFlow, layers.vessels, layers.channels, layers.dangerZones, layers.pollution]);
+  }, [layers.facilities, layers.grid, layers.seabed, layers.currentFlow, layers.vessels, layers.channels, layers.dangerZones, layers.pollution, layers.pollutionZone]);
 
   return (
     <>

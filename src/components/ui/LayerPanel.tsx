@@ -11,6 +11,7 @@ const LAYERS = [
   { key: "channels", label: "항로/정박지", icon: "⬡" },
   { key: "dangerZones", label: "위험구역", icon: "△" },
   { key: "pollution", label: "오염 확산", icon: "⊗" },
+  { key: "pollutionZone", label: "오염구역", icon: "◉" },
   { key: "grid", label: "격자", icon: "▤" },
 ];
 

@@ -115,9 +115,12 @@ export async function createBuildings(): Promise<THREE.Group> {
         mesh.position.y = buildingElev;
         // 건물 정보 저장
         mesh.userData = {
+          buildingId: feature.properties.id || "",
           buildingType: feature.properties.building || "unknown",
           buildingHeight: height,
           buildingName: feature.properties.name || "",
+          buildingLat: avgLat,
+          buildingLon: avgLon,
         };
         group.add(mesh);
       } catch {
